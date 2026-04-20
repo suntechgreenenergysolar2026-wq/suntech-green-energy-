@@ -1,54 +1,65 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { MapPin, Zap, Leaf } from "lucide-react";
+import { Leaf, MapPin, Zap } from "lucide-react";
 import PageBanner from "@/components/PageBanner";
 import SectionHeading from "@/components/SectionHeading";
-import heroResidential from "@/assets/hero-residential.jpg";
-import heroCommercial from "@/assets/hero-commercial.jpg";
-import heroIndustrial from "@/assets/hero-industrial.jpg";
-
-const allProjects = [
-  { image: heroResidential, title: "Villa Rooftop Solar", location: "Pune, MH", capacity: "10 kW", co2: "15T/yr", category: "Residential" },
-  { image: heroResidential, title: "Apartment Complex", location: "Mumbai, MH", capacity: "25 kW", co2: "37T/yr", category: "Residential" },
-  { image: heroCommercial, title: "IT Office Campus", location: "Bangalore, KA", capacity: "500 kW", co2: "750T/yr", category: "Industrial" },
-  { image: heroCommercial, title: "Shopping Mall", location: "Hyderabad, TS", capacity: "300 kW", co2: "450T/yr", category: "Industrial" },
-  { image: heroIndustrial, title: "Factory Rooftop", location: "Nashik, MH", capacity: "2 MW", co2: "3000T/yr", category: "Rooftop" },
-  { image: heroIndustrial, title: "Warehouse Solar", location: "Chennai, TN", capacity: "1 MW", co2: "1500T/yr", category: "Rooftop" },
-];
-
-const filters = ["All", "Residential", "Industrial", "Rooftop"];
+import { usePublicContent } from "@/hooks/use-public-content";
+import { resolveContentImageUrl } from "@/lib/default-content";
 
 const Projects = () => {
+  const { data } = usePublicContent();
   const [active, setActive] = useState("All");
-  const filtered = active === "All" ? allProjects : allProjects.filter((p) => p.category === active);
+
+  const filters = useMemo(() => ["All", ...new Set(data.projects.map((project) => project.category))], [data.projects]);
+  const filteredProjects = active === "All" ? data.projects : data.projects.filter((project) => project.category === active);
 
   return (
     <div>
-      <PageBanner title="Our Projects" subtitle="500+ successful solar installations across India" breadcrumbs={[{ label: "Home", path: "/" }, { label: "Projects" }]} />
+      <PageBanner
+        title="Our Projects"
+        subtitle="Built on the same project portfolio you already had, now with CMS-backed flexibility."
+        breadcrumbs={[{ label: "Home", path: "/" }, { label: "Projects" }]}
+      />
 
       <section className="py-20">
         <div className="container mx-auto px-4">
           <SectionHeading tag="Portfolio" title="Featured Installations" />
-          <div className="flex justify-center gap-3 mb-10 flex-wrap">
-            {filters.map((f) => (
-              <button key={f} onClick={() => setActive(f)} className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${active === f ? "gradient-solar text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-border"}`}>
-                {f}
+          <div className="mb-10 flex flex-wrap justify-center gap-3">
+            {filters.map((filter) => (
+              <button
+                key={filter}
+                onClick={() => setActive(filter)}
+                className={`rounded-full px-5 py-2 text-sm font-medium transition-all ${
+                  active === filter ? "gradient-solar text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-border"
+                }`}
+              >
+                {filter}
               </button>
             ))}
           </div>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {filtered.map((p, i) => (
-              <motion.div key={p.title} className="bg-card rounded-2xl overflow-hidden border border-border card-hover" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }} layout>
+          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+            {filteredProjects.map((project, index) => (
+              <motion.div
+                key={`${project.id ?? project.title}-${project.sortOrder ?? 0}`}
+                className="card-hover overflow-hidden rounded-2xl border border-border bg-card"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.08 }}
+                layout
+              >
                 <div className="relative h-48 overflow-hidden">
-                  <img src={p.image} alt={p.title} loading="lazy" className="w-full h-full object-cover" />
-                  <div className="absolute top-3 left-3 px-3 py-1 rounded-full bg-primary text-primary-foreground text-xs font-semibold">{p.category}</div>
+                  <img src={resolveContentImageUrl(project.imageUrl)} alt={project.title} loading="lazy" className="h-full w-full object-cover" />
+                  <div className="absolute left-3 top-3 rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground">
+                    {project.category}
+                  </div>
                 </div>
                 <div className="p-5">
-                  <h4 className="font-bold text-foreground mb-3">{p.title}</h4>
+                  <h4 className="mb-2 font-bold text-foreground">{project.title}</h4>
+                  <p className="mb-4 text-sm text-muted-foreground">{project.description}</p>
                   <div className="space-y-1.5 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-2"><MapPin className="w-4 h-4" />{p.location}</div>
-                    <div className="flex items-center gap-2"><Zap className="w-4 h-4" />{p.capacity}</div>
-                    <div className="flex items-center gap-2"><Leaf className="w-4 h-4" />{p.co2} CO₂ saved</div>
+                    <div className="flex items-center gap-2"><MapPin className="h-4 w-4" />{project.location}</div>
+                    <div className="flex items-center gap-2"><Zap className="h-4 w-4" />{project.capacity}</div>
+                    <div className="flex items-center gap-2"><Leaf className="h-4 w-4" />{project.co2Savings} CO2 saved</div>
                   </div>
                 </div>
               </motion.div>

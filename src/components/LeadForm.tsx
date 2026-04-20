@@ -1,21 +1,68 @@
-import { useState } from "react";
-import { Send, ArrowRight } from "lucide-react";
+import { FormEvent, useState } from "react";
+import { Send } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { submitLead } from "@/lib/api";
+import { getMarketingContext, trackEvent } from "@/lib/analytics";
 
 interface LeadFormProps {
   compact?: boolean;
 }
 
+const inputClass =
+  "w-full rounded-xl border border-border bg-background px-4 py-3.5 text-sm text-foreground placeholder:text-muted-foreground/60 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20";
+
 const LeadForm = ({ compact = false }: LeadFormProps) => {
-  const [form, setForm] = useState({ name: "", phone: "", bill: "", message: "" });
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    bill: "",
+    message: "",
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    toast({ title: "Thank you! 🎉", description: "We'll get back to you within 24 hours." });
-    setForm({ name: "", phone: "", bill: "", message: "" });
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setIsSubmitting(true);
+
+    try {
+      const context = getMarketingContext();
+
+      await submitLead({
+        ...form,
+        sourcePage: context.path,
+        referrer: context.referrer,
+        utmSource: context.utmSource,
+        utmMedium: context.utmMedium,
+        utmCampaign: context.utmCampaign,
+      });
+
+      await trackEvent("lead_submitted", {
+        sourcePage: context.path,
+      });
+
+      toast({
+        title: "Thank you!",
+        description: "Your enquiry has been sent successfully. Our team will contact you shortly.",
+      });
+
+      setForm({
+        name: "",
+        email: "",
+        phone: "",
+        bill: "",
+        message: "",
+      });
+    } catch (error) {
+      toast({
+        title: "Submission failed",
+        description: error instanceof Error ? error.message : "Please try again in a moment.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
-
-  const inputClass = "w-full px-4 py-3.5 rounded-xl border border-border bg-background text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm";
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -24,7 +71,14 @@ const LeadForm = ({ compact = false }: LeadFormProps) => {
         placeholder="Full Name"
         required
         value={form.name}
-        onChange={(e) => setForm({ ...form, name: e.target.value })}
+        onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
+        className={inputClass}
+      />
+      <input
+        type="email"
+        placeholder="Email Address"
+        value={form.email}
+        onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
         className={inputClass}
       />
       <input
@@ -32,30 +86,34 @@ const LeadForm = ({ compact = false }: LeadFormProps) => {
         placeholder="Phone Number"
         required
         value={form.phone}
-        onChange={(e) => setForm({ ...form, phone: e.target.value })}
+        onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))}
         className={inputClass}
       />
       <input
         type="number"
-        placeholder="Monthly Electricity Bill (₹)"
+        placeholder="Monthly Electricity Bill (Rs)"
         value={form.bill}
-        onChange={(e) => setForm({ ...form, bill: e.target.value })}
+        onChange={(event) => setForm((current) => ({ ...current, bill: event.target.value }))}
         className={inputClass}
       />
-      {!compact && (
+      {!compact ? (
         <textarea
           placeholder="Your Message (Optional)"
           rows={3}
           value={form.message}
-          onChange={(e) => setForm({ ...form, message: e.target.value })}
+          onChange={(event) => setForm((current) => ({ ...current, message: event.target.value }))}
           className={`${inputClass} resize-none`}
         />
-      )}
+      ) : null}
       <button
         type="submit"
-        className="w-full gradient-cta py-4 rounded-xl font-bold text-foreground flex items-center justify-center gap-2 shadow-lg shadow-secondary/20 hover:shadow-xl transition-all hover:scale-[1.02] shine"
+        disabled={isSubmitting}
+        className="w-full gradient-cta rounded-xl py-4 font-bold text-foreground shadow-lg shadow-secondary/20 transition-all hover:scale-[1.02] hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-70"
       >
-        <Send className="w-4 h-4" /> Get Free Quote
+        <span className="flex items-center justify-center gap-2">
+          <Send className="h-4 w-4" />
+          {isSubmitting ? "Sending..." : "Get Free Quote"}
+        </span>
       </button>
     </form>
   );
