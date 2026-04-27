@@ -202,7 +202,7 @@ const Index = () => {
 
   return (
     <div className="bg-background">
-      <section className="relative isolate overflow-hidden pb-16 pt-20 md:pb-24 md:pt-24 lg:pb-28 lg:pt-24">
+      <section className="relative isolate overflow-hidden pb-16 pt-5 md:pb-24 lg:pb-28">
         <div className="absolute inset-0 solar-mesh" />
         <div className="absolute inset-0 solar-grid opacity-70" />
         <div className="sunbeam left-[8%] top-14 h-52 w-52 bg-solar-yellow/20" />
@@ -282,7 +282,7 @@ const Index = () => {
               transition={{ duration: 0.65, delay: 0.12 }}
             >
               <motion.div
-                className="pulse-border absolute -left-8 top-16 hidden rounded-[1.7rem] border border-white/[0.16] bg-white/10 p-4 text-primary-foreground backdrop-blur-xl xl:block"
+                className="pulse-border absolute -left-8 top-16 hidden w-72 rounded-[1.7rem] border border-white/[0.16] bg-white/10 p-4 text-primary-foreground backdrop-blur-xl xl:block"
                 animate={{ y: [0, -10, 0] }}
                 transition={{ duration: 5.5, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
               >
@@ -292,7 +292,7 @@ const Index = () => {
               </motion.div>
 
               <motion.div
-                className="pulse-border absolute -right-6 -top-6 hidden rounded-[1.5rem] border border-white/[0.16] bg-white/[0.12] px-4 py-3 text-primary-foreground backdrop-blur-xl md:block"
+                className="pulse-border absolute right-0 top-0 hidden w-72 rounded-[1.5rem] border border-white/[0.16] bg-white/[0.12] px-4 py-3 text-primary-foreground backdrop-blur-xl md:block"
                 animate={{ y: [0, 8, 0] }}
                 transition={{ duration: 4.8, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
               >

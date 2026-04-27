@@ -166,7 +166,7 @@
     animation: sunbeam-float 10s ease-in-out infinite;
   }
   .pulse-border {
-    position: relative;
+    isolation: isolate;
   }
   .pulse-border::after {
     content: "";
