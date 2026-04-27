@@ -282,16 +282,6 @@ const Index = () => {
               transition={{ duration: 0.65, delay: 0.12 }}
             >
               <motion.div
-                className="pulse-border absolute -left-8 top-16 hidden w-72 rounded-[1.7rem] border border-white/[0.16] bg-white/10 p-4 text-primary-foreground backdrop-blur-xl xl:block"
-                animate={{ y: [0, -10, 0] }}
-                transition={{ duration: 5.5, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
-              >
-                <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-primary-foreground/[0.7]">Local guidance</div>
-                <div className="mt-2 text-lg font-extrabold">Site visit to activation</div>
-                <div className="mt-1 text-sm text-primary-foreground/[0.82]">One connected team, fewer loose ends.</div>
-              </motion.div>
-
-              <motion.div
                 className="pulse-border absolute right-0 top-0 hidden w-72 rounded-[1.5rem] border border-white/[0.16] bg-white/[0.12] px-4 py-3 text-primary-foreground backdrop-blur-xl md:block"
                 animate={{ y: [0, 8, 0] }}
                 transition={{ duration: 4.8, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
