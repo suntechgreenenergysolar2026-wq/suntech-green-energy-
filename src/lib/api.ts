@@ -68,6 +68,17 @@ export type AdminSettingsResponse = {
   social_links: SocialLinks;
 };
 
+export type GoogleReviewSyncStatus = {
+  configured: boolean;
+  autoSync: boolean;
+  locationName: string;
+  totalSynced: number;
+  lastSyncedAt: string | null;
+  lastAttemptAt: string | null;
+  lastError: string | null;
+  syncedNow?: number;
+};
+
 export type AssetRecord = {
   id: number;
   original_name: string;
@@ -77,6 +88,11 @@ export type AssetRecord = {
   size_bytes: number;
   category: string;
   created_at: string;
+};
+
+export type AssetUpdateInput = {
+  originalName: string;
+  category: string;
 };
 
 export type LeadSubmissionInput = {
@@ -253,6 +269,15 @@ export const deleteTestimonial = (token: string, id: number) =>
     token,
   });
 
+export const getGoogleReviewSyncStatus = (token: string) =>
+  apiRequest<GoogleReviewSyncStatus>("/api/admin/google-reviews/status", { token });
+
+export const syncGoogleReviews = (token: string) =>
+  apiRequest<GoogleReviewSyncStatus>("/api/admin/google-reviews/sync", {
+    method: "POST",
+    token,
+  });
+
 export const getAdminSettings = (token: string) =>
   apiRequest<AdminSettingsResponse>("/api/admin/settings", { token });
 
@@ -281,3 +306,19 @@ export const uploadAdminAsset = async (token: string, file: File, category = "ge
     body: formData,
   });
 };
+
+export const updateAdminAsset = (token: string, id: number, payload: AssetUpdateInput) =>
+  apiRequest<{ success: boolean }>(`/api/admin/assets/${id}`, {
+    method: "PATCH",
+    token,
+    body: JSON.stringify(payload),
+  });
+
+export const deleteAdminAsset = (token: string, id: number) =>
+  apiRequest<{ success: boolean; removedReferences: { projects: number; testimonials: number } }>(
+    `/api/admin/assets/${id}`,
+    {
+      method: "DELETE",
+      token,
+    },
+  );

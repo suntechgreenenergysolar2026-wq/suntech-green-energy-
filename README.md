@@ -44,6 +44,38 @@ Default seeded admin credentials:
 
 Change these in `.env` before using the project beyond local development.
 
+## Google Reviews Setup
+
+The website can already display Google reviews together with your manual testimonials. To import your old Google reviews and keep future reviews updated automatically, connect the Google Business Profile API:
+
+1. Request access to the Google Business Profile APIs and enable the required APIs in Google Cloud.
+2. Get your verified location name in the format `accounts/{accountId}/locations/{locationId}`.
+3. Create OAuth credentials, generate a refresh token, and add these values in `.env`:
+
+```env
+GOOGLE_BUSINESS_PROFILE_LOCATION_NAME=
+GOOGLE_BUSINESS_PROFILE_CLIENT_ID=
+GOOGLE_BUSINESS_PROFILE_CLIENT_SECRET=
+GOOGLE_BUSINESS_PROFILE_REFRESH_TOKEN=
+```
+
+4. Restart the backend.
+5. Run the helper command below to confirm your OAuth credentials work and to list the exact `accounts/{accountId}/locations/{locationId}` value to paste into `.env`:
+
+```bash
+npm run google:reviews:setup
+```
+
+6. Open `http://localhost:8080/admin`, go to `Testimonials CMS`, and click `Sync Google Reviews Now`.
+
+The `googleReviewUrl` setting in the admin is only the public Google link used by the `View on Google` button. It does not import reviews by itself.
+
+Why this uses Business Profile instead of the Google search page:
+
+- Business Profile can return all reviews for a verified location.
+- Places API only returns up to 5 reviews.
+- Using the official API is the reliable way to keep new reviews showing on your website.
+
 ## Routes
 
 - Frontend: `http://localhost:8080/` or whatever port Vite is started on

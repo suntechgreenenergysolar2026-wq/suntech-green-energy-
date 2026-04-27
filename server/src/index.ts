@@ -3,8 +3,13 @@ import bcrypt from "bcryptjs";
 import cors from "cors";
 import express from "express";
 import multer from "multer";
+import path from "path";
 import { z } from "zod";
 import type { ResultSetHeader } from "mysql2/promise";
+import {
+  fallbackGoogleReviewTestimonials,
+  fallbackGoogleReviewUrl,
+} from "../../shared/google-review-fallback.js";
 import { requireAdmin, signAdminToken, type AuthenticatedRequest } from "./auth.js";
 import { config } from "./config.js";
 import {
@@ -15,6 +20,11 @@ import {
   defaultTestimonials,
 } from "./defaults.js";
 import { getDb, getSettingsMap, initDatabase, parseJsonValue } from "./database.js";
+import {
+  getGoogleReviewSyncStatus,
+  maybeSyncGoogleBusinessProfileReviews,
+  syncGoogleBusinessProfileReviews,
+} from "./google-reviews.js";
 import { sendLeadNotifications } from "./integrations.js";
 
 const app = express();
@@ -95,6 +105,7 @@ const companyProfileSchema = z.object({
   workingHours: z.string().trim().min(3).max(120),
   mapEmbedUrl: z.string().trim().url(),
   footerBlurb: z.string().trim().min(20).max(800),
+  googleReviewUrl: z.string().trim().url().optional().or(z.literal("")),
 });
 
 const aboutPageSchema = z.object({
@@ -108,6 +119,11 @@ const socialLinksSchema = z.object({
   instagram: z.string().trim().optional().or(z.literal("")),
   linkedin: z.string().trim().optional().or(z.literal("")),
   youtube: z.string().trim().optional().or(z.literal("")),
+});
+
+const assetUpdateSchema = z.object({
+  originalName: z.string().trim().min(1).max(255),
+  category: z.string().trim().min(1).max(80),
 });
 
 const settingValidators = {
@@ -131,6 +147,21 @@ const slugifyFileName = (fileName: string) =>
     .replace(/[^a-z0-9.]+/g, "-")
     .replace(/^-+|-+$/g, "");
 
+const toInitials = (value: string) =>
+  value
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
+
+const normalizeReviewText = (value: string) =>
+  value
+    .replace(/\s+/g, " ")
+    .replace(/([.!?])([A-Za-z"'])/g, "$1 $2")
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .trim();
+
 const toProject = (row: any) => ({
   id: row.id,
   title: row.title,
@@ -149,6 +180,7 @@ const toProject = (row: any) => ({
 
 const toTestimonial = (row: any) => ({
   id: row.id,
+  sourceId: `manual:${row.id}`,
   name: row.name,
   role: row.role,
   text: row.text,
@@ -157,6 +189,29 @@ const toTestimonial = (row: any) => ({
   imageUrl: row.image_url || "",
   sortOrder: row.sort_order,
   isPublished: Boolean(row.is_published),
+  source: "manual" as const,
+  sourceLabel: "Customer Review",
+  reviewedAt: row.updated_at,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+});
+
+const toGoogleReviewTestimonial = (row: any, googleReviewUrl?: string) => ({
+  id: row.id,
+  sourceId: row.google_review_name,
+  name: row.reviewer_name,
+  role: row.relative_time_label ? `Google Review - ${row.relative_time_label}` : "Google Review",
+  text: normalizeReviewText(row.comment || "Rated this business on Google."),
+  rating: row.rating,
+  initials: toInitials(row.reviewer_name || "Google User"),
+  imageUrl: row.reviewer_profile_photo_url || "",
+  sortOrder: row.sort_order,
+  isPublished: Boolean(row.is_published),
+  source: "google" as const,
+  sourceLabel: "Google Review",
+  sourceUrl: googleReviewUrl || "",
+  reviewedAt: null,
+  replyText: normalizeReviewText(row.review_reply_comment || ""),
   createdAt: row.created_at,
   updatedAt: row.updated_at,
 });
@@ -164,18 +219,37 @@ const toTestimonial = (row: any) => ({
 const loadPublicContent = async () => {
   const db = getDb();
   const settings = await getSettingsMap();
+  const companyProfile = {
+    ...defaultCompanyProfile,
+    ...parseJsonValue(settings.company_profile, {}),
+  };
+
+  const googleReviewUrl = companyProfile.googleReviewUrl || defaultCompanyProfile.googleReviewUrl || fallbackGoogleReviewUrl;
+
+  const syncStatus = await maybeSyncGoogleBusinessProfileReviews();
+
+  if (syncStatus.lastError) {
+    console.error("Google review sync skipped/failed:", syncStatus.lastError);
+  }
+
   const [projectRows] = await db.query<any[]>(
     `SELECT * FROM projects WHERE is_published = 1 ORDER BY sort_order ASC, id DESC`,
   );
   const [testimonialRows] = await db.query<any[]>(
     `SELECT * FROM testimonials WHERE is_published = 1 ORDER BY sort_order ASC, id DESC`,
   );
+  const [googleReviewRows] = await db.query<any[]>(
+    `SELECT * FROM google_reviews WHERE is_published = 1 ORDER BY review_update_time DESC, id DESC`,
+  );
+
+  const manualTestimonials = testimonialRows.length > 0 ? testimonialRows.map(toTestimonial) : defaultTestimonials;
+  const googleTestimonials =
+    googleReviewRows.length > 0
+      ? googleReviewRows.map((row) => toGoogleReviewTestimonial(row, googleReviewUrl))
+      : fallbackGoogleReviewTestimonials.map((item) => ({ ...item, sourceUrl: googleReviewUrl }));
 
   return {
-    companyProfile: {
-      ...defaultCompanyProfile,
-      ...parseJsonValue(settings.company_profile, {}),
-    },
+    companyProfile,
     aboutPage: {
       ...defaultAboutPage,
       ...parseJsonValue(settings.about_page, {}),
@@ -185,7 +259,7 @@ const loadPublicContent = async () => {
       ...parseJsonValue(settings.social_links, {}),
     },
     projects: projectRows.length > 0 ? projectRows.map(toProject) : defaultProjects,
-    testimonials: testimonialRows.length > 0 ? testimonialRows.map(toTestimonial) : defaultTestimonials,
+    testimonials: googleTestimonials.length > 0 ? [...googleTestimonials, ...manualTestimonials] : manualTestimonials,
   };
 };
 
@@ -619,6 +693,24 @@ app.delete("/api/admin/testimonials/:id", requireAdmin, async (req, res, next) =
   }
 });
 
+app.get("/api/admin/google-reviews/status", requireAdmin, async (_req, res, next) => {
+  try {
+    const status = await getGoogleReviewSyncStatus();
+    res.json(status);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/admin/google-reviews/sync", requireAdmin, async (_req, res, next) => {
+  try {
+    const status = await syncGoogleBusinessProfileReviews({ force: true });
+    res.json(status);
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.get("/api/admin/settings", requireAdmin, async (_req, res, next) => {
   try {
     const settings = await getSettingsMap();
@@ -678,6 +770,77 @@ app.get("/api/admin/assets", requireAdmin, async (_req, res, next) => {
     res.json(rows);
   } catch (error) {
     next(error);
+  }
+});
+
+app.patch("/api/admin/assets/:id", requireAdmin, async (req, res, next) => {
+  try {
+    const assetId = Number(req.params.id);
+    const parsed = assetUpdateSchema.parse(req.body);
+    const db = getDb();
+
+    await db.execute(
+      `UPDATE assets
+       SET original_name = ?, category = ?
+       WHERE id = ?`,
+      [parsed.originalName, parsed.category, assetId],
+    );
+
+    res.json({ success: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.delete("/api/admin/assets/:id", requireAdmin, async (req, res, next) => {
+  try {
+    const assetId = Number(req.params.id);
+    const db = getDb();
+    const [rows] = await db.query<any[]>(
+      `SELECT id, file_name, file_url
+       FROM assets
+       WHERE id = ?
+       LIMIT 1`,
+      [assetId],
+    );
+    const asset = rows[0];
+
+    if (!asset) {
+      return res.status(404).json({ message: "Asset not found." });
+    }
+
+    const [projectCleanup] = await db.execute<ResultSetHeader>(
+      `UPDATE projects
+       SET image_url = NULL
+       WHERE image_url = ?`,
+      [asset.file_url],
+    );
+    const [testimonialCleanup] = await db.execute<ResultSetHeader>(
+      `UPDATE testimonials
+       SET image_url = NULL
+       WHERE image_url = ?`,
+      [asset.file_url],
+    );
+
+    await db.execute("DELETE FROM assets WHERE id = ?", [assetId]);
+
+    try {
+      await fs.unlink(path.resolve(config.uploadsDir, asset.file_name));
+    } catch (fileError) {
+      if ((fileError as { code?: string }).code !== "ENOENT") {
+        throw fileError;
+      }
+    }
+
+    return res.json({
+      success: true,
+      removedReferences: {
+        projects: Number(projectCleanup.affectedRows ?? 0),
+        testimonials: Number(testimonialCleanup.affectedRows ?? 0),
+      },
+    });
+  } catch (error) {
+    return next(error);
   }
 });
 

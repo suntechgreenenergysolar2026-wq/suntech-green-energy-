@@ -10,8 +10,8 @@ const navLinks = [
   { label: "Home", path: "/" },
   { label: "Residential", path: "/residential" },
   { label: "Commercial", path: "/commercial" },
-  { label: "EPC & Maintenance", path: "/epc" },
   { label: "Projects", path: "/projects" },
+  { label: "Reviews", path: "/reviews" },
   { label: "Financing", path: "/financing" },
   { label: "About", path: "/about" },
   { label: "Contact", path: "/contact" },
@@ -38,7 +38,7 @@ const Header = () => {
   return (
     <header
       className={`fixed left-0 right-0 top-0 z-50 transition-all duration-500 ${
-        scrolled ? "border-b border-border bg-card/95 shadow-lg shadow-primary/5 backdrop-blur-xl" : "bg-transparent"
+        scrolled || mobileOpen ? "border-b border-border bg-card/95 shadow-lg shadow-primary/5 backdrop-blur-xl" : "bg-transparent"
       }`}
     >
       <div className="container mx-auto flex h-18 items-center justify-between px-4 lg:h-20">
@@ -46,7 +46,7 @@ const Header = () => {
           <img src={logo} alt={data.companyProfile.name} className="h-10 w-auto transition-transform group-hover:scale-105 lg:h-12" />
         </Link>
 
-        <nav className="hidden items-center gap-0.5 lg:flex">
+        <nav className="hidden items-center gap-1 lg:flex">
           {navLinks.map((link) => (
             <Link
               key={link.path}
@@ -66,6 +66,9 @@ const Header = () => {
         </nav>
 
         <div className="hidden items-center gap-4 lg:flex">
+          <div className="rounded-full border border-primary/15 bg-primary/5 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.24em] text-primary">
+            Pune rooftop solar
+          </div>
           <a href={phoneHref} className="flex items-center gap-2 text-sm font-medium text-solar-green transition-colors hover:text-solar-green">
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
               <Phone className="h-3.5 w-3.5 text-primary" />
@@ -76,7 +79,7 @@ const Header = () => {
             to="/contact"
             className="gradient-cta shine rounded-xl px-6 py-2.5 text-sm font-bold text-foreground shadow-lg shadow-secondary/25 transition-all hover:scale-105 hover:shadow-xl hover:shadow-secondary/30"
           >
-            Get Free Quote
+            Book Site Visit
           </Link>
         </div>
 
@@ -120,7 +123,7 @@ const Header = () => {
                   to="/contact"
                   className="mt-2 block rounded-xl bg-solar-green px-4 py-3 text-center text-sm font-bold text-primary-foreground shadow-lg transition-colors hover:bg-solar-green/90"
                 >
-                  Get Free Quote
+                  Book Site Visit
                 </Link>
               </div>
             </div>

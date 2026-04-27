@@ -36,5 +36,13 @@ export const config = {
     whatsappFrom: process.env.TWILIO_WHATSAPP_FROM ?? "",
     whatsappTo: process.env.TWILIO_WHATSAPP_TO ?? "",
   },
+  googleBusinessProfile: {
+    locationName: process.env.GOOGLE_BUSINESS_PROFILE_LOCATION_NAME?.trim() ?? "",
+    clientId: process.env.GOOGLE_BUSINESS_PROFILE_CLIENT_ID?.trim() ?? "",
+    clientSecret: process.env.GOOGLE_BUSINESS_PROFILE_CLIENT_SECRET?.trim() ?? "",
+    refreshToken: process.env.GOOGLE_BUSINESS_PROFILE_REFRESH_TOKEN?.trim() ?? "",
+    autoSync: process.env.GOOGLE_BUSINESS_PROFILE_AUTO_SYNC !== "false",
+    syncIntervalMinutes: toNumber(process.env.GOOGLE_BUSINESS_PROFILE_SYNC_INTERVAL_MINUTES, 180),
+  },
   crmWebhookUrl: process.env.CRM_WEBHOOK_URL ?? "",
 };

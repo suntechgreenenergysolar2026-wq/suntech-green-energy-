@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import RequireAdmin from "@/components/admin/RequireAdmin";
 import AnalyticsTracker from "@/components/AnalyticsTracker";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -11,8 +11,8 @@ import AdminLogin from "@/pages/admin/AdminLogin";
 import Index from "./pages/Index";
 import Residential from "./pages/Residential";
 import Commercial from "./pages/Commercial";
-import Epc from "./pages/Epc";
 import Projects from "./pages/Projects";
+import Reviews from "./pages/Reviews";
 import Financing from "./pages/Financing";
 import About from "./pages/About";
 import Contact from "./pages/Contact";
@@ -36,8 +36,9 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/residential" element={<Residential />} />
             <Route path="/commercial" element={<Commercial />} />
-            <Route path="/epc" element={<Epc />} />
+            <Route path="/epc" element={<Navigate to="/contact" replace />} />
             <Route path="/projects" element={<Projects />} />
+            <Route path="/reviews" element={<Reviews />} />
             <Route path="/financing" element={<Financing />} />
             <Route path="/about" element={<About />} />
             <Route path="/contact" element={<Contact />} />

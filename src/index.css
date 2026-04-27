@@ -76,6 +76,20 @@
   .gradient-accent {
     background: linear-gradient(135deg, hsl(var(--solar-green)), hsl(var(--solar-blue)));
   }
+  .solar-mesh {
+    background:
+      radial-gradient(circle at 14% 18%, hsl(var(--solar-yellow) / 0.18), transparent 22%),
+      radial-gradient(circle at 84% 12%, hsl(var(--solar-orange) / 0.22), transparent 18%),
+      radial-gradient(circle at 50% 92%, hsl(var(--solar-green) / 0.22), transparent 28%),
+      linear-gradient(155deg, hsl(214 58% 8%), hsl(159 41% 12%) 50%, hsl(30 82% 24%) 100%);
+  }
+  .solar-grid {
+    background-image:
+      linear-gradient(hsl(0 0% 100% / 0.07) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(0 0% 100% / 0.07) 1px, transparent 1px);
+    background-size: 34px 34px;
+    mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.9), transparent 96%);
+  }
   .text-gradient-solar {
     @apply bg-clip-text text-transparent;
     background-image: linear-gradient(135deg, hsl(var(--solar-orange)), hsl(var(--solar-green)));
@@ -95,6 +109,14 @@
   }
   .card-hover {
     @apply transition-all duration-500 hover:shadow-2xl hover:-translate-y-2;
+  }
+  .lift-card {
+    transition: transform 0.45s ease, box-shadow 0.45s ease, border-color 0.3s ease;
+  }
+  .lift-card:hover {
+    transform: translateY(-8px);
+    border-color: hsl(var(--solar-orange) / 0.26);
+    box-shadow: 0 24px 70px rgba(15, 23, 42, 0.12);
   }
   .glass {
     @apply bg-white/80 backdrop-blur-xl border border-white/20;
@@ -136,9 +158,37 @@
     opacity: 0.3;
     animation: orb-float 8s ease-in-out infinite;
   }
+  .sunbeam {
+    position: absolute;
+    border-radius: 9999px;
+    filter: blur(72px);
+    opacity: 0.45;
+    animation: sunbeam-float 10s ease-in-out infinite;
+  }
+  .pulse-border {
+    position: relative;
+  }
+  .pulse-border::after {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    border: 1px solid hsl(var(--solar-yellow) / 0.22);
+    opacity: 0.55;
+    animation: pulse-border-ring 4.2s ease-in-out infinite;
+    pointer-events: none;
+  }
   @keyframes orb-float {
     0%, 100% { transform: translateY(0) scale(1); }
     50% { transform: translateY(-30px) scale(1.1); }
+  }
+  @keyframes sunbeam-float {
+    0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+    50% { transform: translate3d(0, -18px, 0) scale(1.08); }
+  }
+  @keyframes pulse-border-ring {
+    0%, 100% { opacity: 0.28; transform: scale(1); }
+    50% { opacity: 0.68; transform: scale(1.04); }
   }
 }
 

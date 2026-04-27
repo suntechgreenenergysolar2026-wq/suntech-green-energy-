@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createProject,
   createTestimonial,
+  deleteAdminAsset,
   deleteProject,
   deleteTestimonial,
   getAdminAssets,
@@ -15,10 +16,14 @@ import {
   type AdminSettingsResponse,
   type AssetRecord,
   type DashboardResponse,
+  getGoogleReviewSyncStatus,
+  type GoogleReviewSyncStatus,
   type LeadRecord,
+  updateAdminAsset,
   updateAdminSetting,
   updateLead,
   updateProject,
+  syncGoogleReviews,
   updateTestimonial,
   uploadAdminAsset,
 } from "@/lib/api";
@@ -27,6 +32,7 @@ import {
   defaultAboutPage,
   defaultCompanyProfile,
   defaultProjects,
+  resolveContentImageUrl,
   defaultSocialLinks,
   defaultTestimonials,
   type ProjectItem,
@@ -43,6 +49,12 @@ const tabs = [
 ] as const;
 
 const leadStatuses = ["new", "contacted", "qualified", "won", "lost"] as const;
+const assetCategoryOptions = [
+  { value: "general", label: "General / Other" },
+  { value: "project", label: "Project Image" },
+  { value: "brochure", label: "Brochure / PDF" },
+  { value: "testimonial", label: "Testimonial Image" },
+] as const;
 
 const inputClass =
   "w-full rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/60 focus:border-primary focus:outline-none";
@@ -79,6 +91,9 @@ const getErrorStatus = (error: unknown) =>
 const toAbsoluteUrl = (fileUrl: string) =>
   fileUrl.startsWith("http") ? fileUrl : `${window.location.origin}${fileUrl}`;
 
+const getAssetCategoryLabel = (category: string) =>
+  assetCategoryOptions.find((option) => option.value === category)?.label ?? category;
+
 const SectionTitle = ({ title, subtitle }: { title: string; subtitle: string }) => (
   <div className="mb-6">
     <h2 className="text-2xl font-bold text-foreground">{title}</h2>
@@ -96,13 +111,17 @@ const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState<(typeof tabs)[number]["id"]>("overview");
   const [projectForm, setProjectForm] = useState<ProjectItem>(emptyProjectForm);
   const [editingProjectId, setEditingProjectId] = useState<number | null>(null);
+  const [projectImageFile, setProjectImageFile] = useState<File | null>(null);
+  const [projectImageInputKey, setProjectImageInputKey] = useState(0);
   const [testimonialForm, setTestimonialForm] = useState<TestimonialItem>(emptyTestimonialForm);
   const [editingTestimonialId, setEditingTestimonialId] = useState<number | null>(null);
   const [companyProfileForm, setCompanyProfileForm] = useState(defaultCompanyProfile);
   const [aboutPageForm, setAboutPageForm] = useState(defaultAboutPage);
   const [socialLinksForm, setSocialLinksForm] = useState(defaultSocialLinks);
   const [leadDrafts, setLeadDrafts] = useState<Record<number, { status: string; adminNotes: string }>>({});
+  const [assetDrafts, setAssetDrafts] = useState<Record<number, { originalName: string; category: string }>>({});
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadInputKey, setUploadInputKey] = useState(0);
   const [uploadCategory, setUploadCategory] = useState("general");
   const [feedback, setFeedback] = useState("");
 
@@ -136,6 +155,12 @@ const AdminDashboard = () => {
     enabled: Boolean(token),
   });
 
+  const googleReviewStatusQuery = useQuery({
+    queryKey: ["admin-google-reviews-status"],
+    queryFn: () => getGoogleReviewSyncStatus(token),
+    enabled: Boolean(token),
+  });
+
   const settingsQuery = useQuery({
     queryKey: ["admin-settings"],
     queryFn: () => getAdminSettings(token),
@@ -154,6 +179,7 @@ const AdminDashboard = () => {
       leadsQuery.error,
       projectsQuery.error,
       testimonialsQuery.error,
+      googleReviewStatusQuery.error,
       settingsQuery.error,
       assetsQuery.error,
     ];
@@ -165,6 +191,7 @@ const AdminDashboard = () => {
   }, [
     assetsQuery.error,
     dashboardQuery.error,
+    googleReviewStatusQuery.error,
     leadsQuery.error,
     navigate,
     projectsQuery.error,
@@ -206,12 +233,25 @@ const AdminDashboard = () => {
   });
 
   const projectMutation = useMutation({
-    mutationFn: (payload: ProjectItem) =>
-      editingProjectId ? updateProject(token, editingProjectId, payload) : createProject(token, payload),
+    mutationFn: async (payload: ProjectItem) => {
+      let nextPayload = payload;
+
+      if (projectImageFile) {
+        const uploadResult = await uploadAdminAsset(token, projectImageFile, "project");
+        nextPayload = {
+          ...payload,
+          imageUrl: uploadResult.asset.file_url,
+        };
+      }
+
+      return editingProjectId ? updateProject(token, editingProjectId, nextPayload) : createProject(token, nextPayload);
+    },
     onSuccess: async () => {
       setFeedback(editingProjectId ? "Project updated." : "Project created.");
       setProjectForm(emptyProjectForm);
       setEditingProjectId(null);
+      setProjectImageFile(null);
+      setProjectImageInputKey((current) => current + 1);
       await invalidateCmsData();
     },
   });
@@ -227,6 +267,21 @@ const AdminDashboard = () => {
     },
   });
 
+  const googleReviewSyncMutation = useMutation({
+    mutationFn: () => syncGoogleReviews(token),
+    onSuccess: async (data) => {
+      setFeedback(
+        data.configured
+          ? `Google reviews synced. ${data.totalSynced} review(s) are now available on the site.`
+          : "Google review sync is not configured yet. Add the Business Profile credentials in `.env` first.",
+      );
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["admin-google-reviews-status"] }),
+        queryClient.invalidateQueries({ queryKey: ["public-content"] }),
+      ]);
+    },
+  });
+
   const settingsMutation = useMutation({
     mutationFn: ({ key, value }: { key: keyof AdminSettingsResponse; value: AdminSettingsResponse[keyof AdminSettingsResponse] }) =>
       updateAdminSetting(token, key, value),
@@ -236,11 +291,53 @@ const AdminDashboard = () => {
     },
   });
 
+  const assetUpdateMutation = useMutation({
+    mutationFn: ({ id, originalName, category }: { id: number; originalName: string; category: string }) =>
+      updateAdminAsset(token, id, { originalName, category }),
+    onSuccess: async (_data, variables) => {
+      setFeedback("Asset updated.");
+      setAssetDrafts((current) => {
+        const next = { ...current };
+        delete next[variables.id];
+        return next;
+      });
+      await invalidateCmsData();
+    },
+  });
+
+  const assetDeleteMutation = useMutation({
+    mutationFn: (id: number) => deleteAdminAsset(token, id),
+    onSuccess: async (data, id) => {
+      const cleanupDetails = [];
+
+      if (data.removedReferences.projects > 0) {
+        cleanupDetails.push(`${data.removedReferences.projects} project`);
+      }
+
+      if (data.removedReferences.testimonials > 0) {
+        cleanupDetails.push(`${data.removedReferences.testimonials} testimonial`);
+      }
+
+      setFeedback(
+        cleanupDetails.length > 0
+          ? `Asset deleted. Removed from ${cleanupDetails.join(" and ")} records.`
+          : "Asset deleted.",
+      );
+      setAssetDrafts((current) => {
+        const next = { ...current };
+        delete next[id];
+        return next;
+      });
+      await invalidateCmsData();
+    },
+  });
+
   const uploadMutation = useMutation({
     mutationFn: ({ file, category }: { file: File; category: string }) => uploadAdminAsset(token, file, category),
     onSuccess: async () => {
       setFeedback("File uploaded.");
       setSelectedFile(null);
+      setUploadInputKey((current) => current + 1);
       await queryClient.invalidateQueries({ queryKey: ["admin-assets"] });
     },
   });
@@ -250,6 +347,7 @@ const AdminDashboard = () => {
   const projects = (projectsQuery.data as ProjectItem[] | undefined) ?? defaultProjects;
   const testimonials = (testimonialsQuery.data as TestimonialItem[] | undefined) ?? defaultTestimonials;
   const assets = (assetsQuery.data as AssetRecord[] | undefined) ?? [];
+  const googleReviewStatus = googleReviewStatusQuery.data as GoogleReviewSyncStatus | undefined;
 
   const topProjectImages = useMemo(
     () => assets.filter((asset) => asset.category === "project" || asset.category === "brochure"),
@@ -504,7 +602,49 @@ const AdminDashboard = () => {
                   <input className={inputClass} placeholder="CO2 savings" value={projectForm.co2Savings || ""} onChange={(event) => setProjectForm((current) => ({ ...current, co2Savings: event.target.value }))} required />
                 </div>
                 <textarea className={textareaClass} placeholder="Project description" value={projectForm.description || ""} onChange={(event) => setProjectForm((current) => ({ ...current, description: event.target.value }))} />
-                <input className={inputClass} placeholder="Image URL or /uploads path" value={projectForm.imageUrl || ""} onChange={(event) => setProjectForm((current) => ({ ...current, imageUrl: event.target.value }))} />
+                <div className="space-y-3 rounded-2xl border border-border bg-muted/30 p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">Project image</p>
+                      <p className="mt-1 text-xs text-muted-foreground">Choose an image file and it will upload automatically when you save this project.</p>
+                    </div>
+                    {projectForm.imageUrl ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setProjectForm((current) => ({ ...current, imageUrl: "" }));
+                          setProjectImageFile(null);
+                          setProjectImageInputKey((current) => current + 1);
+                        }}
+                        className="rounded-xl border border-border px-3 py-2 text-sm font-semibold text-foreground hover:bg-background"
+                      >
+                        Remove Image
+                      </button>
+                    ) : null}
+                  </div>
+
+                  <input
+                    key={projectImageInputKey}
+                    className={inputClass}
+                    type="file"
+                    accept="image/*"
+                    onChange={(event) => setProjectImageFile(event.target.files?.[0] ?? null)}
+                  />
+
+                  {projectImageFile ? (
+                    <p className="text-xs text-muted-foreground">Selected file: {projectImageFile.name}</p>
+                  ) : projectForm.imageUrl ? (
+                    <p className="text-xs text-muted-foreground">Current image: {projectForm.imageUrl}</p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">No image selected. Leaving this empty will keep the default project artwork.</p>
+                  )}
+
+                  {projectForm.imageUrl ? (
+                    <div className="overflow-hidden rounded-2xl border border-border bg-background">
+                      <img src={resolveContentImageUrl(projectForm.imageUrl)} alt={projectForm.title || "Project preview"} className="h-40 w-full object-cover" />
+                    </div>
+                  ) : null}
+                </div>
                 <div className="grid gap-4 md:grid-cols-3">
                   <input className={inputClass} type="number" min={0} placeholder="Sort order" value={projectForm.sortOrder ?? 0} onChange={(event) => setProjectForm((current) => ({ ...current, sortOrder: Number(event.target.value) }))} />
                   <label className="flex items-center gap-3 rounded-xl border border-border px-4 py-3 text-sm text-foreground">
@@ -517,11 +657,26 @@ const AdminDashboard = () => {
                   </label>
                 </div>
                 <div className="flex flex-wrap gap-3">
-                  <button type="submit" className="rounded-xl bg-solar-green px-4 py-3 font-semibold text-white transition-colors hover:bg-solar-green/90">
-                    {editingProjectId ? "Save Project" : "Create Project"}
+                  <button type="submit" disabled={projectMutation.isPending} className="rounded-xl bg-solar-green px-4 py-3 font-semibold text-white transition-colors hover:bg-solar-green/90 disabled:cursor-not-allowed disabled:opacity-70">
+                    {projectMutation.isPending
+                      ? projectImageFile
+                        ? "Uploading Image..."
+                        : "Saving..."
+                      : editingProjectId
+                        ? "Save Project"
+                        : "Create Project"}
                   </button>
                   {editingProjectId ? (
-                    <button type="button" onClick={() => { setEditingProjectId(null); setProjectForm(emptyProjectForm); }} className="rounded-xl border border-border px-4 py-3 font-semibold text-foreground transition-colors hover:bg-muted">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingProjectId(null);
+                        setProjectForm(emptyProjectForm);
+                        setProjectImageFile(null);
+                        setProjectImageInputKey((current) => current + 1);
+                      }}
+                      className="rounded-xl border border-border px-4 py-3 font-semibold text-foreground transition-colors hover:bg-muted"
+                    >
                       Cancel Edit
                     </button>
                   ) : null}
@@ -545,6 +700,8 @@ const AdminDashboard = () => {
                         <button
                           onClick={() => {
                             setEditingProjectId(project.id ?? null);
+                            setProjectImageFile(null);
+                            setProjectImageInputKey((current) => current + 1);
                             setProjectForm({
                               ...emptyProjectForm,
                               ...project,
@@ -577,8 +734,82 @@ const AdminDashboard = () => {
 
         {activeTab === "testimonials" ? (
           <div className="grid gap-6 xl:grid-cols-[1.05fr_1.2fr]">
+            <div className={`${cardClass} xl:col-span-2`}>
+              <SectionTitle
+                title="Google Reviews Sync"
+                subtitle="Import the old reviews from your verified Google Business Profile and keep new reviews appearing on the website automatically."
+              />
+              <div className="grid gap-4 md:grid-cols-4">
+                <div className="rounded-2xl border border-border p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Status</p>
+                  <p className="mt-2 text-lg font-bold text-foreground">
+                    {googleReviewStatus?.configured ? "Configured" : "Not configured"}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-border p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Auto Sync</p>
+                  <p className="mt-2 text-lg font-bold text-foreground">
+                    {googleReviewStatus?.autoSync ? "Enabled" : "Manual only"}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-border p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Imported Reviews</p>
+                  <p className="mt-2 text-lg font-bold text-foreground">{googleReviewStatus?.totalSynced ?? 0}</p>
+                </div>
+                <div className="rounded-2xl border border-border p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Last Synced</p>
+                  <p className="mt-2 text-sm font-semibold text-foreground">
+                    {googleReviewStatus?.lastSyncedAt ? new Date(googleReviewStatus.lastSyncedAt).toLocaleString() : "Never"}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-4 rounded-2xl border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
+                {googleReviewStatus?.configured ? (
+                  <>
+                    <p>
+                      Connected location: <span className="font-semibold text-foreground">{googleReviewStatus.locationName}</span>
+                    </p>
+                    <p className="mt-2">
+                      Use the sync button below to pull your latest Google reviews into the website. New Google reviews will keep appearing here based on your auto-sync settings.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p>
+                      Add `GOOGLE_BUSINESS_PROFILE_LOCATION_NAME`, `GOOGLE_BUSINESS_PROFILE_CLIENT_ID`,
+                      `GOOGLE_BUSINESS_PROFILE_CLIENT_SECRET`, and `GOOGLE_BUSINESS_PROFILE_REFRESH_TOKEN` in `.env`
+                      to start syncing Google reviews.
+                    </p>
+                    <div className="mt-3 rounded-2xl border border-dashed border-border bg-background/80 p-4">
+                      <p className="font-semibold text-foreground">What to connect</p>
+                      <div className="mt-2 space-y-2">
+                        <p>1. Request Google Business Profile API access for your verified business location.</p>
+                        <p>2. Create OAuth credentials and a refresh token for that Google account.</p>
+                        <p>3. Restart the backend, then click <span className="font-semibold text-foreground">Sync Google Reviews Now</span>.</p>
+                      </div>
+                    </div>
+                    <p className="mt-3">
+                      The Google review page URL in company settings is only used for the public "View on Google" button. It does not import review data on its own.
+                    </p>
+                  </>
+                )}
+                {googleReviewStatus?.lastError ? (
+                  <p className="mt-2 text-red-600">Last sync error: {googleReviewStatus.lastError}</p>
+                ) : null}
+              </div>
+              <div className="mt-4">
+                <button
+                  onClick={() => googleReviewSyncMutation.mutate()}
+                  disabled={googleReviewSyncMutation.isPending}
+                  className="rounded-xl bg-solar-green px-4 py-3 font-semibold text-white transition-colors hover:bg-solar-green/90 disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  {googleReviewSyncMutation.isPending ? "Syncing..." : "Sync Google Reviews Now"}
+                </button>
+              </div>
+            </div>
+
             <div className={cardClass}>
-              <SectionTitle title={editingTestimonialId ? "Edit Testimonial" : "Add Testimonial"} subtitle="Manage the reviews shown on the site while preserving the current seeded content." />
+              <SectionTitle title={editingTestimonialId ? "Edit Testimonial" : "Add Testimonial"} subtitle="Manage the manual reviews shown on the site in addition to synced Google reviews." />
               <form onSubmit={handleTestimonialSubmit} className="space-y-4">
                 <input className={inputClass} placeholder="Customer name" value={testimonialForm.name || ""} onChange={(event) => setTestimonialForm((current) => ({ ...current, name: event.target.value }))} required />
                 <div className="grid gap-4 md:grid-cols-2">
@@ -609,7 +840,7 @@ const AdminDashboard = () => {
             </div>
 
             <div className={cardClass}>
-              <SectionTitle title="Existing Testimonials" subtitle="These records power the homepage review carousel." />
+              <SectionTitle title="Manual Testimonials" subtitle="These manual testimonials are displayed together with synced Google reviews on the public site." />
               <div className="space-y-4">
                 {testimonials.map((testimonial) => (
                   <div key={`${testimonial.id ?? testimonial.name}-${testimonial.sortOrder ?? 0}`} className="rounded-2xl border border-border p-4">
@@ -673,6 +904,10 @@ const AdminDashboard = () => {
                 <input className={inputClass} placeholder="Address" value={companyProfileForm.address} onChange={(event) => setCompanyProfileForm((current) => ({ ...current, address: event.target.value }))} />
                 <input className={inputClass} placeholder="Working hours" value={companyProfileForm.workingHours} onChange={(event) => setCompanyProfileForm((current) => ({ ...current, workingHours: event.target.value }))} />
                 <input className={inputClass} placeholder="Google Maps embed URL" value={companyProfileForm.mapEmbedUrl} onChange={(event) => setCompanyProfileForm((current) => ({ ...current, mapEmbedUrl: event.target.value }))} />
+                <input className={inputClass} placeholder="Google review page URL" value={companyProfileForm.googleReviewUrl || ""} onChange={(event) => setCompanyProfileForm((current) => ({ ...current, googleReviewUrl: event.target.value }))} />
+                <p className="text-sm text-muted-foreground">
+                  This is the public Google page visitors open when they click "View on Google". Importing reviews still requires the Google Business Profile credentials in `.env`.
+                </p>
                 <textarea className={textareaClass} placeholder="Footer blurb" value={companyProfileForm.footerBlurb} onChange={(event) => setCompanyProfileForm((current) => ({ ...current, footerBlurb: event.target.value }))} />
                 <button
                   onClick={() => settingsMutation.mutate({ key: "company_profile", value: companyProfileForm })}
@@ -721,15 +956,19 @@ const AdminDashboard = () => {
         {activeTab === "uploads" ? (
           <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
             <div className={cardClass}>
-              <SectionTitle title="Upload Asset" subtitle="Store project photos, brochures, or other CMS assets for reuse." />
+              <SectionTitle title="Upload Asset" subtitle="Store project photos, brochures, or other CMS assets for reuse and manage them from this tab." />
               <div className="space-y-4">
-                <input type="file" onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)} className={inputClass} />
+                <input key={uploadInputKey} type="file" onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)} className={inputClass} />
                 <select value={uploadCategory} onChange={(event) => setUploadCategory(event.target.value)} className={inputClass}>
-                  <option value="general">General</option>
-                  <option value="project">Project</option>
-                  <option value="brochure">Brochure</option>
-                  <option value="testimonial">Testimonial</option>
+                  {assetCategoryOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
                 </select>
+                <p className="text-xs text-muted-foreground">
+                  `General / Other` means the file is uploaded and stored in the library, but not specifically tagged for a project, brochure, or testimonial yet.
+                </p>
                 <button onClick={saveUpload} className="rounded-xl bg-solar-green px-4 py-3 font-semibold text-white transition-colors hover:bg-solar-green/90">
                   Upload File
                 </button>
@@ -752,16 +991,24 @@ const AdminDashboard = () => {
             </div>
 
             <div className={cardClass}>
-              <SectionTitle title="Uploaded Assets" subtitle="Use these `/uploads/...` paths in projects, testimonials, or future CMS content." />
+              <SectionTitle title="Uploaded Assets" subtitle="Edit category/name, copy the file path, open the asset, or delete it from here." />
               <div className="space-y-4">
-                {assets.map((asset) => (
-                  <div key={asset.id} className="grid gap-4 rounded-2xl border border-border p-4 lg:grid-cols-[120px_1fr]">
+                {assets.map((asset) => {
+                  const draft = assetDrafts[asset.id] || {
+                    originalName: asset.original_name,
+                    category: asset.category,
+                  };
+                  const isUpdating = assetUpdateMutation.isPending && assetUpdateMutation.variables?.id === asset.id;
+                  const isDeleting = assetDeleteMutation.isPending && assetDeleteMutation.variables === asset.id;
+
+                  return (
+                    <div key={asset.id} className="grid gap-4 rounded-2xl border border-border p-4 lg:grid-cols-[120px_1fr]">
                     <div className="overflow-hidden rounded-2xl border border-border bg-muted">
                       {asset.mime_type.startsWith("image/") ? (
                         <img src={toAbsoluteUrl(asset.file_url)} alt={asset.original_name} className="h-28 w-full object-cover" />
                       ) : (
-                        <div className="flex h-28 items-center justify-center text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                          {asset.category}
+                        <div className="flex h-28 items-center justify-center px-3 text-center text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                          {getAssetCategoryLabel(asset.category)}
                         </div>
                       )}
                     </div>
@@ -777,9 +1024,75 @@ const AdminDashboard = () => {
                           Open File
                         </a>
                       </div>
+                      <div className="grid gap-3 md:grid-cols-[1.4fr_0.9fr]">
+                        <input
+                          className={inputClass}
+                          value={draft.originalName}
+                          onChange={(event) =>
+                            setAssetDrafts((current) => ({
+                              ...current,
+                              [asset.id]: {
+                                originalName: event.target.value,
+                                category: current[asset.id]?.category ?? draft.category,
+                              },
+                            }))
+                          }
+                          placeholder="File name"
+                        />
+                        <select
+                          className={inputClass}
+                          value={draft.category}
+                          onChange={(event) =>
+                            setAssetDrafts((current) => ({
+                              ...current,
+                              [asset.id]: {
+                                originalName: current[asset.id]?.originalName ?? draft.originalName,
+                                category: event.target.value,
+                              },
+                            }))
+                          }
+                        >
+                          {assetCategoryOptions.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          onClick={() =>
+                            assetUpdateMutation.mutate({
+                              id: asset.id,
+                              originalName: draft.originalName.trim(),
+                              category: draft.category,
+                            })
+                          }
+                          disabled={isUpdating || isDeleting || !draft.originalName.trim()}
+                          className="rounded-xl border border-border px-3 py-2 text-sm font-semibold text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-70"
+                        >
+                          {isUpdating ? "Saving..." : "Save"}
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (
+                              window.confirm(
+                                "Delete this uploaded file? If it is used in a project or testimonial, that image reference will be cleared.",
+                              )
+                            ) {
+                              assetDeleteMutation.mutate(asset.id);
+                            }
+                          }}
+                          disabled={isUpdating || isDeleting}
+                          className="rounded-xl border border-red-300 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-70"
+                        >
+                          {isDeleting ? "Deleting..." : "Delete"}
+                        </button>
+                      </div>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
                 {assets.length ? null : <p className="text-sm text-muted-foreground">No uploaded assets yet.</p>}
               </div>
             </div>

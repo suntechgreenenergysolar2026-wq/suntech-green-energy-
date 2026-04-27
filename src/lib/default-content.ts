@@ -1,6 +1,10 @@
 import heroCommercial from "@/assets/hero-commercial.jpg";
 import heroIndustrial from "@/assets/hero-industrial.jpg";
 import heroResidential from "@/assets/hero-residential.jpg";
+import {
+  fallbackGoogleReviewTestimonials,
+  fallbackGoogleReviewUrl,
+} from "../../shared/google-review-fallback";
 
 export type CompanyProfile = {
   name: string;
@@ -15,6 +19,7 @@ export type CompanyProfile = {
   workingHours: string;
   mapEmbedUrl: string;
   footerBlurb: string;
+  googleReviewUrl?: string;
 };
 
 export type AboutPageContent = {
@@ -46,6 +51,7 @@ export type ProjectItem = {
 
 export type TestimonialItem = {
   id?: number;
+  sourceId?: string;
   name: string;
   role: string;
   text: string;
@@ -54,6 +60,11 @@ export type TestimonialItem = {
   imageUrl?: string;
   sortOrder?: number;
   isPublished?: boolean;
+  source?: "manual" | "google";
+  sourceLabel?: string;
+  sourceUrl?: string;
+  reviewedAt?: string;
+  replyText?: string;
 };
 
 export type PublicContent = {
@@ -63,6 +74,42 @@ export type PublicContent = {
   projects: ProjectItem[];
   testimonials: TestimonialItem[];
 };
+
+const defaultManualTestimonials: TestimonialItem[] = [
+  {
+    name: "Rajesh Kumar",
+    role: "Homeowner, Pune",
+    text: "Suntech installed a 5kW system on our rooftop. Our electricity bill dropped dramatically and the team was excellent to work with.",
+    rating: 5,
+    initials: "RK",
+    sortOrder: 1,
+    isPublished: true,
+    source: "manual",
+    sourceLabel: "Customer Review",
+  },
+  {
+    name: "Priya Sharma",
+    role: "Business Owner, Mumbai",
+    text: "The ROI has been phenomenal. We recovered our investment quickly and now enjoy major long-term savings.",
+    rating: 5,
+    initials: "PS",
+    sortOrder: 2,
+    isPublished: true,
+    source: "manual",
+    sourceLabel: "Customer Review",
+  },
+  {
+    name: "Amit Patel",
+    role: "Factory Manager, Nashik",
+    text: "Professional team, strong product quality, and dependable after-sales support throughout the project.",
+    rating: 5,
+    initials: "AP",
+    sortOrder: 3,
+    isPublished: true,
+    source: "manual",
+    sourceLabel: "Customer Review",
+  },
+];
 
 export const defaultCompanyProfile: CompanyProfile = {
   name: "SUNTECH GREEN ENERGY SOLAR",
@@ -80,6 +127,7 @@ export const defaultCompanyProfile: CompanyProfile = {
     "https://www.google.com/maps?q=Manjari%20Farm%2C%20Solapur%20-%20Pune%20Hwy%2C%20behind%20MAHALAXMI%20FORCE%20MOTORS%2C%20Shewalewadi%2C%20Pune%2C%20Maharashtra%20412307&output=embed",
   footerBlurb:
     "Established in 2020, SUNTECH GREEN ENERGY SOLAR delivers reliable residential, commercial, and industrial solar solutions across Pune and surrounding regions.",
+  googleReviewUrl: fallbackGoogleReviewUrl,
 };
 
 export const defaultAboutPage: AboutPageContent = {
@@ -173,33 +221,8 @@ export const defaultProjects: ProjectItem[] = [
 ];
 
 export const defaultTestimonials: TestimonialItem[] = [
-  {
-    name: "Rajesh Kumar",
-    role: "Homeowner, Pune",
-    text: "Suntech installed a 5kW system on our rooftop. Our electricity bill dropped dramatically and the team was excellent to work with.",
-    rating: 5,
-    initials: "RK",
-    sortOrder: 1,
-    isPublished: true,
-  },
-  {
-    name: "Priya Sharma",
-    role: "Business Owner, Mumbai",
-    text: "The ROI has been phenomenal. We recovered our investment quickly and now enjoy major long-term savings.",
-    rating: 5,
-    initials: "PS",
-    sortOrder: 2,
-    isPublished: true,
-  },
-  {
-    name: "Amit Patel",
-    role: "Factory Manager, Nashik",
-    text: "Professional team, strong product quality, and dependable after-sales support throughout the project.",
-    rating: 5,
-    initials: "AP",
-    sortOrder: 3,
-    isPublished: true,
-  },
+  ...fallbackGoogleReviewTestimonials.map((item) => ({ ...item })),
+  ...defaultManualTestimonials,
 ];
 
 export const defaultPublicContent: PublicContent = {

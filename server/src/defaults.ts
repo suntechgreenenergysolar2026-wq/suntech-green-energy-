@@ -1,3 +1,5 @@
+import { fallbackGoogleReviewUrl } from "../../shared/google-review-fallback.js";
+
 export const defaultProjects = [
   {
     title: "Villa Rooftop Solar",
@@ -119,6 +121,7 @@ export const defaultCompanyProfile = {
     "https://www.google.com/maps?q=Manjari%20Farm%2C%20Solapur%20-%20Pune%20Hwy%2C%20behind%20MAHALAXMI%20FORCE%20MOTORS%2C%20Shewalewadi%2C%20Pune%2C%20Maharashtra%20412307&output=embed",
   footerBlurb:
     "Established in 2020, SUNTECH GREEN ENERGY SOLAR delivers reliable residential, commercial, and industrial solar solutions across Pune and surrounding regions.",
+  googleReviewUrl: fallbackGoogleReviewUrl,
 };
 
 export const defaultAboutPage = {

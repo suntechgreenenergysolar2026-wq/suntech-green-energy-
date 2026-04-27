@@ -24,6 +24,7 @@ const Footer = () => {
   const companyProfile = data.companyProfile;
   const socialLinks = data.socialLinks;
   const phoneList = getPhoneList(companyProfile);
+  const currentYear = new Date().getFullYear();
 
   const handleSubscribe = async () => {
     if (!email) {
@@ -130,6 +131,7 @@ const Footer = () => {
                   { label: "Home", path: "/" },
                   { label: "About Us", path: "/about" },
                   { label: "Projects", path: "/projects" },
+                  { label: "Reviews", path: "/reviews" },
                   { label: "Financing", path: "/financing" },
                   { label: "Contact", path: "/contact" },
                 ].map((link) => (
@@ -147,8 +149,9 @@ const Footer = () => {
                 {[
                   { label: "Residential Solar", path: "/residential" },
                   { label: "Commercial Solar", path: "/commercial" },
-                  { label: "EPC & Maintenance", path: "/epc" },
+                  { label: "Industrial Rooftops", path: "/commercial" },
                   { label: "Solar Financing", path: "/financing" },
+                  { label: "Subsidy Guidance", path: "/contact" },
                 ].map((link) => (
                   <Link key={link.path} to={link.path} className="group flex items-center gap-1 text-sm text-primary-foreground/50 transition-colors hover:text-solar-orange">
                     <ArrowUpRight className="h-3 w-3 opacity-0 transition-opacity group-hover:opacity-100" />
@@ -195,7 +198,7 @@ const Footer = () => {
         <div className="border-t border-primary-foreground/8">
           <div className="container mx-auto flex flex-col items-center justify-between gap-3 px-4 py-5 md:flex-row">
             <p className="text-xs text-primary-foreground/40">
-              &copy; 2026 {companyProfile.name}. All rights reserved.
+              &copy; {currentYear} {companyProfile.name}. All rights reserved.
             </p>
             <div className="flex gap-6 text-xs text-primary-foreground/40">
               <a href="#privacy" className="transition-colors hover:text-primary-foreground/70">

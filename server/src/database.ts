@@ -81,6 +81,26 @@ const migrationStatements = [
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+  `CREATE TABLE IF NOT EXISTS google_reviews (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    google_review_name VARCHAR(255) NOT NULL UNIQUE,
+    reviewer_name VARCHAR(160) NOT NULL,
+    reviewer_is_anonymous TINYINT(1) NOT NULL DEFAULT 0,
+    reviewer_profile_photo_url VARCHAR(500) NULL,
+    rating INT NOT NULL DEFAULT 5,
+    comment TEXT NULL,
+    relative_time_label VARCHAR(80) NULL,
+    review_create_time DATETIME NULL,
+    review_update_time DATETIME NULL,
+    review_reply_comment TEXT NULL,
+    review_reply_update_time DATETIME NULL,
+    sort_order INT NOT NULL DEFAULT 0,
+    is_published TINYINT(1) NOT NULL DEFAULT 1,
+    synced_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_google_reviews_published (is_published, review_update_time)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
   `CREATE TABLE IF NOT EXISTS site_settings (
     setting_key VARCHAR(120) PRIMARY KEY,
     setting_value JSON NOT NULL,
@@ -246,6 +266,22 @@ const runMigrations = async (db: mysql.Pool) => {
   }
 };
 
+const ensureGoogleReviewColumns = async (db: mysql.Pool) => {
+  const [rows] = await db.query<any[]>(
+    `SELECT COUNT(*) AS total
+     FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'google_reviews'
+       AND COLUMN_NAME = 'relative_time_label'`,
+  );
+
+  if (Number(rows[0]?.total ?? 0) === 0) {
+    await db.execute(
+      "ALTER TABLE google_reviews ADD COLUMN relative_time_label VARCHAR(80) NULL AFTER comment",
+    );
+  }
+};
+
 export const initDatabase = async () => {
   if (!config.databaseUrl) {
     throw new Error(
@@ -274,6 +310,7 @@ export const initDatabase = async () => {
   });
 
   await runMigrations(pool);
+  await ensureGoogleReviewColumns(pool);
   await insertSettingsIfMissing(pool);
   await seedAdminIfMissing(pool);
   await seedProjectsIfMissing(pool);
