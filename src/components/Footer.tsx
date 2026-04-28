@@ -131,11 +131,10 @@ const Footer = () => {
                   { label: "Home", path: "/" },
                   { label: "About Us", path: "/about" },
                   { label: "Projects", path: "/projects" },
-                  { label: "Reviews", path: "/reviews" },
-                  { label: "Financing", path: "/financing" },
+                  { label: "Reviews", path: "/about#reviews" },
                   { label: "Contact", path: "/contact" },
                 ].map((link) => (
-                  <Link key={link.path} to={link.path} className="group flex items-center gap-1 text-sm text-primary-foreground/50 transition-colors hover:text-solar-orange">
+                  <Link key={`${link.label}-${link.path}`} to={link.path} className="group flex items-center gap-1 text-sm text-primary-foreground/50 transition-colors hover:text-solar-orange">
                     <ArrowUpRight className="h-3 w-3 opacity-0 transition-opacity group-hover:opacity-100" />
                     {link.label}
                   </Link>
@@ -150,10 +149,9 @@ const Footer = () => {
                   { label: "Residential Solar", path: "/residential" },
                   { label: "Commercial Solar", path: "/commercial" },
                   { label: "Industrial Rooftops", path: "/commercial" },
-                  { label: "Solar Financing", path: "/financing" },
                   { label: "Subsidy Guidance", path: "/contact" },
                 ].map((link) => (
-                  <Link key={link.path} to={link.path} className="group flex items-center gap-1 text-sm text-primary-foreground/50 transition-colors hover:text-solar-orange">
+                  <Link key={`${link.label}-${link.path}`} to={link.path} className="group flex items-center gap-1 text-sm text-primary-foreground/50 transition-colors hover:text-solar-orange">
                     <ArrowUpRight className="h-3 w-3 opacity-0 transition-opacity group-hover:opacity-100" />
                     {link.label}
                   </Link>
