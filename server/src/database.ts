@@ -19,10 +19,13 @@ type ParsedConnection = {
 
 let pool: mysql.Pool | null = null;
 
-const legacyDefaultProjectImageUrls = [
-  "default:hero-residential",
-  "default:hero-commercial",
-  "default:hero-industrial",
+const managedDefaultProjectTitles = [
+  "Villa Rooftop Solar",
+  "Apartment Complex",
+  "IT Office Campus",
+  "Shopping Mall",
+  "Factory Rooftop",
+  "Warehouse Solar",
 ];
 
 const migrationStatements = [
@@ -212,20 +215,13 @@ const seedAdminIfMissing = async (db: mysql.Pool) => {
   );
 };
 
-const seedProjectsIfMissing = async (db: mysql.Pool) => {
-  const [rows] = await db.query<any[]>("SELECT COUNT(*) AS total FROM projects");
-
-  if (Number(rows[0]?.total ?? 0) > 0) {
-    return;
-  }
-
+const syncDefaultProjects = async (db: mysql.Pool) => {
   for (const project of defaultProjects) {
-    await db.execute(
-      `INSERT INTO projects
-        (title, location, capacity, co2_savings, category, description, image_url, sort_order, is_featured, is_published)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    const [updateResult] = await db.execute(
+      `UPDATE projects
+       SET location = ?, capacity = ?, co2_savings = ?, category = ?, description = ?, image_url = ?, sort_order = ?, is_featured = ?, is_published = ?
+       WHERE title = ?`,
       [
-        project.title,
         project.location,
         project.capacity,
         project.co2Savings,
@@ -235,27 +231,43 @@ const seedProjectsIfMissing = async (db: mysql.Pool) => {
         project.sortOrder,
         project.isFeatured ? 1 : 0,
         project.isPublished ? 1 : 0,
-      ],
-    );
-  }
-};
-
-const syncSeedProjectImages = async (db: mysql.Pool) => {
-  for (const project of defaultProjects) {
-    await db.execute(
-      `UPDATE projects
-       SET image_url = ?
-       WHERE title = ?
-         AND image_url IN (?, ?, ?)`,
-      [
-        project.imageUrl,
         project.title,
-        legacyDefaultProjectImageUrls[0],
-        legacyDefaultProjectImageUrls[1],
-        legacyDefaultProjectImageUrls[2],
       ],
     );
+
+    const affectedRows = Number((updateResult as mysql.ResultSetHeader).affectedRows ?? 0);
+
+    if (affectedRows === 0) {
+      await db.execute(
+        `INSERT INTO projects
+          (title, location, capacity, co2_savings, category, description, image_url, sort_order, is_featured, is_published)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          project.title,
+          project.location,
+          project.capacity,
+          project.co2Savings,
+          project.category,
+          project.description,
+          project.imageUrl,
+          project.sortOrder,
+          project.isFeatured ? 1 : 0,
+          project.isPublished ? 1 : 0,
+        ],
+      );
+    }
   }
+
+  const activeDefaultProjectTitles = new Set(defaultProjects.map((project) => project.title));
+  const obsoleteDefaultProjectTitles = managedDefaultProjectTitles.filter((title) => !activeDefaultProjectTitles.has(title));
+
+  if (obsoleteDefaultProjectTitles.length === 0) {
+    return;
+  }
+
+  const placeholders = obsoleteDefaultProjectTitles.map(() => "?").join(", ");
+
+  await db.execute(`DELETE FROM projects WHERE title IN (${placeholders})`, obsoleteDefaultProjectTitles);
 };
 
 const seedTestimonialsIfMissing = async (db: mysql.Pool) => {
@@ -337,8 +349,7 @@ export const initDatabase = async () => {
   await ensureGoogleReviewColumns(pool);
   await insertSettingsIfMissing(pool);
   await seedAdminIfMissing(pool);
-  await seedProjectsIfMissing(pool);
-  await syncSeedProjectImages(pool);
+  await syncDefaultProjects(pool);
   await seedTestimonialsIfMissing(pool);
 
   return pool;
