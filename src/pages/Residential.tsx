@@ -1,5 +1,25 @@
 import { motion } from "framer-motion";
-import { ArrowRight, Battery, Building2, FileText, Home, Landmark, Shield, Sun, Wrench, Zap, type LucideIcon } from "lucide-react";
+import {
+  ArrowRight,
+  Award,
+  Battery,
+  Building2,
+  CheckCircle2,
+  FileText,
+  Gauge,
+  Home,
+  IndianRupee,
+  Landmark,
+  PhoneCall,
+  Shield,
+  Smartphone,
+  Star,
+  Sun,
+  Wrench,
+  XCircle,
+  Zap,
+  type LucideIcon,
+} from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useMemo, useState } from "react";
 import PageBanner from "@/components/PageBanner";
@@ -10,6 +30,8 @@ import trustAfterSalesImage from "@/assets/trust-after-sales.webp";
 import trustGuaranteedSavingsImage from "@/assets/trust-guaranteed-savings.webp";
 import trustHassleFreeProcessImage from "@/assets/trust-hassle-free-process.webp";
 import trustStormProofImage from "@/assets/trust-storm-proof.webp";
+import heroHomeBanner from "@/assets/hero-home-banner.jpg";
+import heroResidential from "@/assets/hero-residential.jpg";
 
 type Segment = "homes" | "housing-society";
 
@@ -347,12 +369,424 @@ const contentBySegment: Record<Segment, SegmentContent> = {
   },
 };
 
+const homeJourneySteps = [
+  {
+    title: "Free Visit and Rooftop Check",
+    desc: "Our team checks roof space, shadow, current bill pattern, and practical system capacity.",
+  },
+  {
+    title: "Personalized Solar Design",
+    desc: "You get a clear layout direction before confirming, so panel placement and savings expectations are easy to understand.",
+  },
+  {
+    title: "Installation and Subsidy Support",
+    desc: "Suntech coordinates installation planning, documentation, and subsidy guidance through one accountable workflow.",
+  },
+  {
+    title: "Solar On, Savings Begin",
+    desc: "After commissioning, we support performance checks and maintenance guidance for steady long-term generation.",
+  },
+];
+
+const homeTrustCards = [
+  {
+    image: trustGuaranteedSavingsImage,
+    title: "Savings-first Design",
+    desc: "System sizing is planned around real bill reduction, roof conditions, and practical long-term payback.",
+  },
+  {
+    image: trustHassleFreeProcessImage,
+    title: "Hassle-free Process",
+    desc: "Survey, design, installation, subsidy guidance, and after-sales support are handled in one flow.",
+  },
+  {
+    image: trustStormProofImage,
+    title: "Durable Structure",
+    desc: "Rooftop mounting is planned for clean alignment, local weather, and long service life.",
+  },
+  {
+    image: trustAfterSalesImage,
+    title: "Reliable Service",
+    desc: "Performance guidance and service support help keep your plant generating consistently after handover.",
+  },
+];
+
+const homeStats = [
+  { value: "500+", label: "Homes Solarized", icon: Home },
+  { value: "1 MW+", label: "Power Installed", icon: Zap },
+  { value: "Rs.78k", label: "Subsidy Guidance", icon: IndianRupee },
+  { value: "100%", label: "Customer Satisfaction", icon: Award },
+];
+
+const homeAdvantages = [
+  "End-to-end survey, design, installation, and support",
+  "Subsidy and net-metering documentation guidance",
+  "Clean rooftop workmanship with durable mounting",
+  "Local Pune and PCMC service support",
+];
+
+const otherProviderGaps = [
+  "Fragmented vendor coordination",
+  "Limited post-install follow-up",
+  "Unclear subsidy and documentation process",
+  "Generic system sizing without usage review",
+];
+
+const homeownerFaqs = [
+  {
+    question: "Why should I switch my home to solar?",
+    answer:
+      "Rooftop solar can reduce monthly electricity bills, lower grid dependency, and create long-term savings when the system is sized around your actual usage.",
+  },
+  {
+    question: "How high should my electricity bill be for solar to make sense?",
+    answer:
+      "Solar usually becomes more attractive when monthly bills are around Rs. 1,500 or above, but the best answer depends on roof space, tariff, and usage pattern.",
+  },
+  {
+    question: "Can Suntech help with subsidy paperwork?",
+    answer:
+      "Yes. Our team guides eligible homeowners through the subsidy and documentation process so the project is easier to manage.",
+  },
+  {
+    question: "What if I am not sure my roof has enough space?",
+    answer:
+      "A free site visit helps confirm roof area, shade impact, structure requirements, and the right solar capacity before you commit.",
+  },
+  {
+    question: "How will I know if the system is performing well?",
+    answer:
+      "We guide you on generation tracking and provide post-install support so performance issues can be spotted and addressed early.",
+  },
+];
+
+const formatCurrency = (amount: number) => `Rs.${Math.round(amount).toLocaleString("en-IN")}`;
+
+const HomeOfferingPage = () => {
+  const [bill, setBill] = useState(6000);
+  const annualSavings = Math.round(bill * 12 * 0.86);
+  const lifetimeSavings = annualSavings * 25;
+  const recommendedKw = Math.max(1, Math.round((bill / 850) * 10) / 10);
+
+  return (
+    <div className="bg-background">
+      <section className="relative isolate overflow-hidden pb-12 pt-24 lg:pb-16 lg:pt-28">
+        <div className="absolute inset-0" aria-hidden="true">
+          <img src={heroHomeBanner} alt="" className="h-full w-full object-cover object-[55%_center]" loading="eager" />
+          <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(4,11,24,0.9)_0%,rgba(4,11,24,0.78)_45%,rgba(4,11,24,0.58)_100%)]" />
+          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(4,11,24,0.08),rgba(4,11,24,0.82))]" />
+        </div>
+        <div className="absolute inset-0 solar-grid opacity-20" aria-hidden="true" />
+
+        <div className="container relative z-10 mx-auto px-4">
+          <div className="grid gap-10 lg:grid-cols-[1fr_0.92fr] lg:items-center">
+            <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55 }}>
+              <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.24em] text-primary-foreground/85">
+                <Sun className="h-4 w-4 text-solar-yellow" />
+                Home Solar by Suntech
+              </div>
+              <h1 className="mt-5 max-w-4xl text-4xl font-extrabold leading-tight text-primary-foreground md:text-6xl">
+                Save up to 90% on your home electricity bills.
+              </h1>
+              <p className="mt-5 max-w-2xl text-base leading-8 text-primary-foreground/78 md:text-lg">
+                Rooftop solar for homes, professionally managed from roof survey and design to installation, subsidy guidance, and after-sales support.
+              </p>
+
+              <div className="mt-8 flex flex-wrap gap-4">
+                <a href="#home-consultation" className="gradient-cta shine inline-flex items-center gap-2 rounded-2xl px-7 py-4 text-sm font-bold text-foreground shadow-lg shadow-secondary/20">
+                  Get Free Quote
+                  <ArrowRight className="h-4 w-4" />
+                </a>
+                <a href="#home-calculator" className="inline-flex items-center gap-2 rounded-2xl border border-white/20 px-7 py-4 text-sm font-semibold text-primary-foreground hover:bg-white/10">
+                  Calculate Savings
+                </a>
+              </div>
+
+              <div className="mt-8 inline-flex flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-white/10 px-5 py-4 text-primary-foreground backdrop-blur-xl">
+                <span className="inline-flex items-center gap-1 text-solar-yellow">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <Star key={star} className="h-4 w-4 fill-current" />
+                  ))}
+                </span>
+                <span className="text-sm font-semibold">Trusted by homeowners across Pune and PCMC</span>
+              </div>
+            </motion.div>
+
+            <motion.div
+              id="home-consultation"
+              className="relative mx-auto w-full max-w-2xl self-stretch"
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.55, delay: 0.1 }}
+            >
+              <div className="h-full bg-[#eaf0fb] p-6 shadow-[0_28px_90px_rgba(0,0,0,0.18)] md:p-8 lg:p-10">
+                <LeadForm compact showConsultationHeader referenceStyle />
+              </div>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
+      <section className="py-12">
+        <div className="container mx-auto px-4">
+          <SectionHeading title="Simplified Solar Journey for Your Home" />
+          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+            {homeJourneySteps.map((step, index) => (
+              <motion.div
+                key={step.title}
+                className="rounded-[1.5rem] border border-border bg-card p-6 shadow-[0_12px_32px_rgba(15,23,42,0.06)]"
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.08 }}
+              >
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-sm font-extrabold text-primary-foreground">{index + 1}</span>
+                <h3 className="mt-5 text-lg font-extrabold text-foreground">{step.title}</h3>
+                <p className="mt-3 text-sm leading-7 text-muted-foreground">{step.desc}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-muted/35 py-12">
+        <div className="container mx-auto px-4">
+          <div className="grid gap-7 md:grid-cols-2 xl:grid-cols-4">
+            {homeStats.map((stat) => (
+              <div key={stat.label} className="rounded-[1.5rem] border border-border bg-card p-6 text-center shadow-[0_12px_32px_rgba(15,23,42,0.06)]">
+                <stat.icon className="mx-auto h-7 w-7 text-primary" />
+                <div className="mt-4 text-3xl font-extrabold text-foreground">{stat.value}</div>
+                <div className="mt-1 text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">{stat.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="py-12">
+        <div className="container mx-auto px-4">
+          <SectionHeading title="Why Families Trust Suntech Green Energy" />
+          <div className="grid gap-7 md:grid-cols-2 xl:grid-cols-4">
+            {homeTrustCards.map((card, index) => (
+              <motion.div
+                key={card.title}
+                className="text-center"
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.08 }}
+              >
+                <div className="mx-auto mb-4 h-52 w-full max-w-[230px] overflow-hidden rounded-2xl border border-border bg-card shadow-[0_14px_35px_rgba(12,20,31,0.08)]">
+                  <img src={card.image} alt={card.title} className="h-full w-full object-cover" loading="lazy" />
+                </div>
+                <h3 className="text-xl font-extrabold text-foreground">{card.title}</h3>
+                <p className="mx-auto mt-2 max-w-[280px] text-sm leading-7 text-muted-foreground">{card.desc}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section id="home-calculator" className="bg-muted/40 py-12">
+        <div className="container mx-auto px-4">
+          <div className="grid gap-8 lg:grid-cols-[0.95fr_1.05fr] lg:items-start">
+            <div>
+              <SectionHeading center={false} title="Unlock Your Solar Savings" subtitle="Enter your average monthly electricity bill to see a quick home solar direction." />
+              <div className="rounded-[2rem] border border-border bg-card p-7 shadow-[0_16px_50px_rgba(15,23,42,0.08)]">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <label className="text-sm font-bold text-foreground">Monthly Electricity Bill</label>
+                  <span className="rounded-xl bg-secondary/10 px-3 py-2 text-sm font-extrabold text-secondary">{formatCurrency(bill)}</span>
+                </div>
+                <input
+                  type="range"
+                  min={1500}
+                  max={30000}
+                  step={500}
+                  value={bill}
+                  onChange={(event) => setBill(Number(event.target.value))}
+                  className="h-2 w-full cursor-pointer appearance-none rounded-full bg-muted accent-secondary"
+                />
+                <div className="mt-2 flex justify-between text-xs font-semibold text-muted-foreground">
+                  <span>Rs.1,500</span>
+                  <span>Rs.30,000</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="rounded-[1.5rem] border border-border bg-card p-6 shadow-[0_12px_32px_rgba(15,23,42,0.06)]">
+                <Sun className="h-6 w-6 text-primary" />
+                <p className="mt-4 text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">Recommended Size</p>
+                <p className="mt-2 text-2xl font-extrabold text-foreground">{recommendedKw.toLocaleString("en-IN")} kW</p>
+              </div>
+              <div className="rounded-[1.5rem] border border-border bg-card p-6 shadow-[0_12px_32px_rgba(15,23,42,0.06)]">
+                <Gauge className="h-6 w-6 text-primary" />
+                <p className="mt-4 text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">Annual Savings</p>
+                <p className="mt-2 text-2xl font-extrabold text-foreground">{formatCurrency(annualSavings)}</p>
+              </div>
+              <div className="sm:col-span-2 rounded-[1.5rem] border border-primary/20 bg-primary/5 p-6">
+                <SparklineIcon />
+                <p className="mt-4 text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">25-Year Savings Direction</p>
+                <p className="mt-2 text-3xl font-extrabold text-foreground">{formatCurrency(lifetimeSavings)}</p>
+                <p className="mt-3 text-sm leading-7 text-muted-foreground">Final capacity, subsidy eligibility, and savings are confirmed after roof survey and utility checks.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="py-12">
+        <div className="container mx-auto px-4">
+          <div className="grid gap-8 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
+            <div className="overflow-hidden rounded-[2rem] border border-border shadow-[0_18px_50px_rgba(15,23,42,0.1)]">
+              <img src={heroResidential} alt="Residential rooftop solar installation" className="h-[440px] w-full object-cover" loading="lazy" />
+            </div>
+            <div>
+              <SectionHeading center={false} title="The Suntech Advantage" subtitle="End-to-end management for homeowners who want solar savings without confusing vendor coordination." />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="rounded-[1.5rem] border border-primary/20 bg-card p-5">
+                  <h3 className="mb-4 text-lg font-extrabold text-foreground">Suntech</h3>
+                  <div className="space-y-3">
+                    {homeAdvantages.map((item) => (
+                      <div key={item} className="flex gap-3 text-sm leading-6 text-muted-foreground">
+                        <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                        <span>{item}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="rounded-[1.5rem] border border-border bg-muted/45 p-5">
+                  <h3 className="mb-4 text-lg font-extrabold text-foreground">Typical Gaps</h3>
+                  <div className="space-y-3">
+                    {otherProviderGaps.map((item) => (
+                      <div key={item} className="flex gap-3 text-sm leading-6 text-muted-foreground">
+                        <XCircle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
+                        <span>{item}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <a href="#home-consultation" className="mt-7 inline-flex items-center gap-2 rounded-2xl border border-primary px-6 py-4 text-sm font-bold text-primary hover:bg-primary hover:text-primary-foreground">
+                Talk to an Expert
+                <PhoneCall className="h-4 w-4" />
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-muted/35 py-12">
+        <div className="container mx-auto px-4">
+          <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+            <div>
+              <SectionHeading center={false} title="Track Your Solar Performance" subtitle="Stay informed about generation, savings direction, and plant health with clear monitoring guidance after installation." />
+              <div className="grid gap-4 sm:grid-cols-3">
+                {["Power generation", "Savings visibility", "Service follow-up"].map((item) => (
+                  <div key={item} className="rounded-[1.25rem] border border-border bg-card p-4 text-sm font-bold text-foreground">
+                    <Smartphone className="mb-3 h-5 w-5 text-primary" />
+                    {item}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="rounded-[2rem] border border-border bg-card p-7 shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
+              <div className="rounded-[1.5rem] bg-[#101840] p-6 text-primary-foreground">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary-foreground/65">Today</p>
+                    <p className="mt-2 text-3xl font-extrabold">24.8 units</p>
+                  </div>
+                  <Sun className="h-10 w-10 text-solar-yellow" />
+                </div>
+                <div className="mt-8 grid grid-cols-7 items-end gap-2">
+                  {[38, 52, 45, 72, 64, 88, 78].map((height, index) => (
+                    <div key={index} className="rounded-full bg-solar-yellow/85" style={{ height }} />
+                  ))}
+                </div>
+                <div className="mt-6 rounded-2xl bg-white/10 p-4">
+                  <p className="text-sm text-primary-foreground/70">Estimated monthly bill reduction</p>
+                  <p className="mt-1 text-2xl font-extrabold">Up to 90%</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="py-12">
+        <div className="container mx-auto px-4">
+          <SectionHeading title="90% of Customers Recommend Going Solar" />
+          <div className="grid gap-6 md:grid-cols-3">
+            {[
+              ["Pune Homeowner", "Our bill reduction estimate was explained clearly before installation, and the final work was neat."],
+              ["PCMC Customer", "The subsidy and net-metering process felt much easier with one team guiding every step."],
+              ["Residential Family", "We understood the roof layout, investment, and savings direction before saying yes."],
+            ].map(([name, quote]) => (
+              <div key={name} className="rounded-[1.5rem] border border-border bg-card p-6 shadow-[0_12px_32px_rgba(15,23,42,0.06)]">
+                <Shield className="h-6 w-6 text-primary" />
+                <p className="mt-4 text-sm leading-7 text-muted-foreground">"{quote}"</p>
+                <div className="mt-5 text-base font-extrabold text-foreground">{name}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-muted/35 py-12">
+        <div className="container mx-auto px-4">
+          <SectionHeading title="Frequently Asked Questions" />
+          <div className="mx-auto max-w-4xl rounded-[2rem] border border-border bg-card p-6 shadow-[0_18px_50px_rgba(15,23,42,0.08)] md:p-8">
+            <Accordion type="single" collapsible className="space-y-3">
+              {homeownerFaqs.map((item, index) => (
+                <AccordionItem key={item.question} value={`home-offering-faq-${index}`} className="rounded-[1.25rem] border border-border px-5 data-[state=open]:bg-muted/40">
+                  <AccordionTrigger className="py-5 text-left text-base font-bold text-foreground hover:no-underline">{item.question}</AccordionTrigger>
+                  <AccordionContent className="pb-5 text-sm leading-7 text-muted-foreground">{item.answer}</AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          </div>
+        </div>
+      </section>
+
+      <section className="py-12">
+        <div className="container mx-auto px-4">
+          <div className="relative overflow-hidden rounded-[2rem] px-8 py-10 text-primary-foreground shadow-[0_24px_70px_rgba(2,12,27,0.25)] md:px-12">
+            <img src={heroResidential} alt="" className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
+            <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(4,10,18,0.92)_0%,rgba(4,10,18,0.76)_54%,rgba(4,10,18,0.68)_100%)]" />
+            <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+              <div className="max-w-2xl">
+                <h2 className="text-3xl font-extrabold md:text-4xl">Book a free home solar consultation.</h2>
+                <p className="mt-3 text-base leading-8 text-primary-foreground/78">Get rooftop feasibility, system size, subsidy direction, and savings clarity before you decide.</p>
+              </div>
+              <a href="#home-consultation" className="gradient-cta shine inline-flex items-center justify-center gap-2 rounded-2xl px-6 py-4 text-sm font-bold text-foreground">
+                Schedule Free Visit
+                <ArrowRight className="h-4 w-4" />
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+};
+
+const SparklineIcon = () => (
+  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+    <Zap className="h-5 w-5 text-primary" />
+  </div>
+);
+
 const Residential = () => {
   const location = useLocation();
   const segment = useMemo<Segment>(() => {
     const value = new URLSearchParams(location.search).get("segment");
     return value === "housing-society" ? "housing-society" : "homes";
   }, [location.search]);
+
+  if (segment === "homes") {
+    return <HomeOfferingPage />;
+  }
 
   const content = contentBySegment[segment];
 

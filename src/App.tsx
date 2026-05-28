@@ -10,10 +10,12 @@ import AdminDashboard from "@/pages/admin/AdminDashboard";
 import AdminLogin from "@/pages/admin/AdminLogin";
 import Index from "./pages/Index";
 import Residential from "./pages/Residential";
+import HousingSociety from "./pages/HousingSociety";
 import Commercial from "./pages/Commercial";
 import Projects from "./pages/Projects";
 import About from "./pages/About";
 import Contact from "./pages/Contact";
+import PuneSolar from "./pages/PuneSolar";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -33,9 +35,13 @@ const App = () => (
           <Route element={<Layout />}>
             <Route path="/" element={<Index />} />
             <Route path="/residential" element={<Residential />} />
+            <Route path="/housing-society" element={<HousingSociety />} />
             <Route path="/commercial" element={<Commercial />} />
             <Route path="/epc" element={<Navigate to="/contact" replace />} />
             <Route path="/projects" element={<Projects />} />
+            <Route path="/rooftop-solar-in-pune" element={<PuneSolar />} />
+            <Route path="/rooftop-solar-in-pcmc" element={<PuneSolar location="pcmc" />} />
+            <Route path="/rooftop-solar-in-pimpri-chinchwad" element={<PuneSolar location="pcmc" />} />
             <Route path="/reviews" element={<Navigate to={{ pathname: "/about", hash: "#reviews" }} replace />} />
             <Route path="/financing" element={<Navigate to="/about" replace />} />
             <Route path="/about" element={<About />} />

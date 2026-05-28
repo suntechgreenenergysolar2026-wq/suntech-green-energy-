@@ -13,12 +13,12 @@ const primaryLinks = [
 
 const offeringLinks = [
   { label: "Homes", path: "/residential", icon: Home },
-  { label: "Housing Society", path: "/residential?segment=housing-society", icon: Building2 },
+  { label: "Housing Society", path: "/housing-society", icon: Building2 },
 ];
 
 const cityLinks = [
-  { label: "Pune", path: "/contact?city=Pune", icon: MapPin },
-  { label: "PCMC", path: "/contact?city=PCMC", icon: MapPin },
+  { label: "Pune", path: "/rooftop-solar-in-pune", icon: MapPin },
+  { label: "PCMC", path: "/rooftop-solar-in-pcmc", icon: MapPin },
 ];
 
 const Header = () => {
