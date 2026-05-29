@@ -201,6 +201,14 @@ html {
   scroll-behavior: smooth;
 }
 
+#root :where(*) {
+  text-align: justify;
+}
+
+#root :where(nav, nav *, button, [role="button"], input, textarea, select, label, svg, img, video, canvas) {
+  text-align: initial;
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
