@@ -9,7 +9,7 @@ const toNumber = (value: string | undefined, fallback: number) => {
 };
 
 export const config = {
-  apiPort: toNumber(process.env.API_PORT, 4000),
+  apiPort: toNumber(process.env.PORT ?? process.env.API_PORT, 4000),
   databaseUrl: process.env.DATABASE_URL?.trim() ?? "",
   databaseAutoCreate: process.env.DATABASE_AUTO_CREATE !== "false",
   jwtSecret: process.env.JWT_SECRET ?? "change-this-before-production",
