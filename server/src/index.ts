@@ -30,6 +30,8 @@ import {
 import { sendLeadNotifications } from "./integrations.js";
 
 const app = express();
+const frontendDistDir = path.resolve(process.cwd(), "dist");
+let databaseReady = false;
 
 const leadSchema = z.object({
   name: z.string().trim().min(2).max(160),
@@ -345,7 +347,11 @@ app.use(express.urlencoded({ extended: true }));
 app.use("/uploads", express.static(config.uploadsDir));
 
 app.get("/api/health", (_req, res) => {
-  res.json({ ok: true, service: "suntek-api" });
+  res.status(databaseReady ? 200 : 503).json({
+    ok: databaseReady,
+    service: "suntek-api",
+    database: databaseReady ? "connected" : "unavailable",
+  });
 });
 
 app.get("/api/public/content", async (_req, res, next) => {
@@ -1038,6 +1044,15 @@ app.post("/api/admin/uploads", requireAdmin, upload.single("file"), async (req, 
   }
 });
 
+app.use("/api", (_req, res) => {
+  res.status(404).json({ message: "API route not found." });
+});
+
+app.use(express.static(frontendDistDir));
+app.get("*", (_req, res) => {
+  res.sendFile(path.join(frontendDistDir, "index.html"));
+});
+
 app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   if (error instanceof z.ZodError) {
     return res.status(400).json({
@@ -1061,7 +1076,13 @@ app.use((error: unknown, _req: express.Request, res: express.Response, _next: ex
 
 const start = async () => {
   await fs.mkdir(config.uploadsDir, { recursive: true });
-  await initDatabase();
+
+  try {
+    await initDatabase();
+    databaseReady = true;
+  } catch (error) {
+    console.error("Database initialization failed; starting with database unavailable:", error);
+  }
 
   app.listen(config.apiPort, () => {
     console.log(`SUNTECH API listening on http://localhost:${config.apiPort}`);
