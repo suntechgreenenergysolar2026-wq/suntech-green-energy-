@@ -102,3 +102,59 @@ export const defaultSocialLinks = {
   linkedin: "",
   youtube: "",
 };
+
+export const defaultContactPage = {
+  bannerTitle: "Contact Us",
+  bannerSubtitle: "Get in touch with our solar experts",
+  infoTitle: "Get In Touch",
+  formTitle: "Send Us a Message",
+  puneTitle: "Pune Rooftop Solar Snapshot",
+  puneSubtitle:
+    "Quick overview for Pune homeowners based on publicly available market benchmarks and subsidy-aligned residential estimates.",
+};
+
+export const defaultBlogPosts = [
+  {
+    title: "How to Plan a Rooftop Solar System That Pays Back Faster",
+    slug: "plan-rooftop-solar-system-faster-payback",
+    excerpt:
+      "A practical guide to matching system size, bill patterns, subsidy eligibility, and installation quality before you invest in rooftop solar.",
+    content:
+      "Start with your electricity bill, available rooftop area, shade-free hours, and long-term energy goals. A good solar plan balances monthly savings with safe structure, reliable equipment, and after-sales support.",
+    category: "Solar Planning",
+    imageUrl: "default:hero-commercial",
+    publishedAt: "2026-06-05",
+    readTime: "5 min read",
+    sortOrder: 1,
+    isFeatured: true,
+    isPublished: true,
+  },
+  {
+    title: "Residential Solar Subsidy Checklist for Homeowners",
+    slug: "residential-solar-subsidy-checklist",
+    excerpt: "Know the documents, site details, and practical checks that make the subsidy process smoother.",
+    content:
+      "Keep your electricity bill, consumer number, identity details, bank details, and rooftop photos ready before starting the subsidy process. Eligibility and final subsidy depend on applicable government rules.",
+    category: "Subsidy",
+    imageUrl: "default:hero-residential",
+    publishedAt: "2026-05-28",
+    readTime: "4 min read",
+    sortOrder: 2,
+    isFeatured: false,
+    isPublished: true,
+  },
+  {
+    title: "What Happens During a Professional Solar Site Visit",
+    slug: "professional-solar-site-visit",
+    excerpt: "From shadow checks to roof strength, here is what a good solar team reviews before final design.",
+    content:
+      "A site visit checks shade, structure, cable routing, inverter placement, safety access, and expected generation. These checks help avoid surprises during installation.",
+    category: "Process",
+    imageUrl: "default:hero-industrial",
+    publishedAt: "2026-05-22",
+    readTime: "3 min read",
+    sortOrder: 3,
+    isFeatured: false,
+    isPublished: true,
+  },
+];

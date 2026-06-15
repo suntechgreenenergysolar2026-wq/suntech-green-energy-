@@ -3,11 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createProject,
+  createBlogPost,
   createTestimonial,
   deleteAdminAsset,
+  deleteBlogPost,
   deleteProject,
   deleteTestimonial,
   getAdminAssets,
+  getAdminBlogPosts,
   getAdminDashboard,
   getAdminLeads,
   getAdminProjects,
@@ -20,6 +23,7 @@ import {
   type GoogleReviewSyncStatus,
   type LeadRecord,
   updateAdminAsset,
+  updateBlogPost,
   updateAdminSetting,
   updateLead,
   updateProject,
@@ -30,28 +34,34 @@ import {
 import { clearAdminSession, loadAdminSession } from "@/lib/admin-auth";
 import {
   defaultAboutPage,
+  defaultBlogPosts,
+  defaultContactPage,
   defaultCompanyProfile,
   defaultProjects,
   resolveContentImageUrl,
   defaultSocialLinks,
   defaultTestimonials,
   type ProjectItem,
+  type BlogPostItem,
   type TestimonialItem,
 } from "@/lib/default-content";
+import logo from "@/assets/suntech logo.png";
 
 const tabs = [
   { id: "overview", label: "Overview" },
-  { id: "leads", label: "Leads" },
+  { id: "leads", label: "Leads", hidden: true },
   { id: "projects", label: "Projects CMS" },
+  { id: "blog", label: "Blog CMS" },
   { id: "testimonials", label: "Testimonials CMS" },
   { id: "settings", label: "Site Settings" },
-  { id: "uploads", label: "Uploads" },
+  { id: "uploads", label: "Media Library" },
 ] as const;
 
 const leadStatuses = ["new", "contacted", "qualified", "won", "lost"] as const;
 const assetCategoryOptions = [
-  { value: "general", label: "General / Other" },
+  { value: "general", label: "General File" },
   { value: "project", label: "Project Image" },
+  { value: "blog", label: "Blog Image" },
   { value: "brochure", label: "Brochure / PDF" },
   { value: "testimonial", label: "Testimonial Image" },
 ] as const;
@@ -59,7 +69,7 @@ const assetCategoryOptions = [
 const inputClass =
   "w-full rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/60 focus:border-primary focus:outline-none";
 const textareaClass = `${inputClass} min-h-[120px] resize-y`;
-const cardClass = "rounded-3xl border border-border bg-card p-6 shadow-sm";
+const cardClass = "rounded-[1.25rem] border border-slate-200/80 bg-white/95 p-6 shadow-[0_18px_45px_rgba(15,23,42,0.06)]";
 
 const emptyProjectForm: ProjectItem = {
   title: "",
@@ -71,6 +81,20 @@ const emptyProjectForm: ProjectItem = {
   imageUrl: "",
   sortOrder: 0,
   isFeatured: true,
+  isPublished: true,
+};
+
+const emptyBlogPostForm: BlogPostItem = {
+  title: "",
+  slug: "",
+  excerpt: "",
+  content: "",
+  category: "Solar Guide",
+  imageUrl: "default:hero-commercial",
+  publishedAt: new Date().toISOString().slice(0, 10),
+  readTime: "4 min read",
+  sortOrder: 0,
+  isFeatured: false,
   isPublished: true,
 };
 
@@ -94,6 +118,13 @@ const toAbsoluteUrl = (fileUrl: string) =>
 const getAssetCategoryLabel = (category: string) =>
   assetCategoryOptions.find((option) => option.value === category)?.label ?? category;
 
+const slugifyTitle = (value: string) =>
+  value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
 const SectionTitle = ({ title, subtitle }: { title: string; subtitle: string }) => (
   <div className="mb-6">
     <h2 className="text-2xl font-bold text-foreground">{title}</h2>
@@ -113,10 +144,15 @@ const AdminDashboard = () => {
   const [editingProjectId, setEditingProjectId] = useState<number | null>(null);
   const [projectImageFile, setProjectImageFile] = useState<File | null>(null);
   const [projectImageInputKey, setProjectImageInputKey] = useState(0);
+  const [blogPostForm, setBlogPostForm] = useState<BlogPostItem>(emptyBlogPostForm);
+  const [editingBlogPostId, setEditingBlogPostId] = useState<number | null>(null);
+  const [blogImageFile, setBlogImageFile] = useState<File | null>(null);
+  const [blogImageInputKey, setBlogImageInputKey] = useState(0);
   const [testimonialForm, setTestimonialForm] = useState<TestimonialItem>(emptyTestimonialForm);
   const [editingTestimonialId, setEditingTestimonialId] = useState<number | null>(null);
   const [companyProfileForm, setCompanyProfileForm] = useState(defaultCompanyProfile);
   const [aboutPageForm, setAboutPageForm] = useState(defaultAboutPage);
+  const [contactPageForm, setContactPageForm] = useState(defaultContactPage);
   const [socialLinksForm, setSocialLinksForm] = useState(defaultSocialLinks);
   const [leadDrafts, setLeadDrafts] = useState<Record<number, { status: string; adminNotes: string }>>({});
   const [assetDrafts, setAssetDrafts] = useState<Record<number, { originalName: string; category: string }>>({});
@@ -149,6 +185,12 @@ const AdminDashboard = () => {
     enabled: Boolean(token),
   });
 
+  const blogPostsQuery = useQuery({
+    queryKey: ["admin-blog-posts"],
+    queryFn: () => getAdminBlogPosts(token),
+    enabled: Boolean(token),
+  });
+
   const testimonialsQuery = useQuery({
     queryKey: ["admin-testimonials"],
     queryFn: () => getAdminTestimonials(token),
@@ -178,6 +220,7 @@ const AdminDashboard = () => {
       dashboardQuery.error,
       leadsQuery.error,
       projectsQuery.error,
+      blogPostsQuery.error,
       testimonialsQuery.error,
       googleReviewStatusQuery.error,
       settingsQuery.error,
@@ -191,6 +234,7 @@ const AdminDashboard = () => {
   }, [
     assetsQuery.error,
     dashboardQuery.error,
+    blogPostsQuery.error,
     googleReviewStatusQuery.error,
     leadsQuery.error,
     navigate,
@@ -206,6 +250,7 @@ const AdminDashboard = () => {
 
     setCompanyProfileForm(settingsQuery.data.company_profile);
     setAboutPageForm(settingsQuery.data.about_page);
+    setContactPageForm(settingsQuery.data.contact_page);
     setSocialLinksForm(settingsQuery.data.social_links);
   }, [settingsQuery.data]);
 
@@ -213,6 +258,7 @@ const AdminDashboard = () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ["admin-dashboard"] }),
       queryClient.invalidateQueries({ queryKey: ["admin-projects"] }),
+      queryClient.invalidateQueries({ queryKey: ["admin-blog-posts"] }),
       queryClient.invalidateQueries({ queryKey: ["admin-testimonials"] }),
       queryClient.invalidateQueries({ queryKey: ["admin-settings"] }),
       queryClient.invalidateQueries({ queryKey: ["admin-assets"] }),
@@ -252,6 +298,30 @@ const AdminDashboard = () => {
       setEditingProjectId(null);
       setProjectImageFile(null);
       setProjectImageInputKey((current) => current + 1);
+      await invalidateCmsData();
+    },
+  });
+
+  const blogPostMutation = useMutation({
+    mutationFn: async (payload: BlogPostItem) => {
+      let nextPayload = payload;
+
+      if (blogImageFile) {
+        const uploadResult = await uploadAdminAsset(token, blogImageFile, "blog");
+        nextPayload = {
+          ...payload,
+          imageUrl: uploadResult.asset.file_url,
+        };
+      }
+
+      return editingBlogPostId ? updateBlogPost(token, editingBlogPostId, nextPayload) : createBlogPost(token, nextPayload);
+    },
+    onSuccess: async () => {
+      setFeedback(editingBlogPostId ? "Blog post updated." : "Blog post created.");
+      setBlogPostForm(emptyBlogPostForm);
+      setEditingBlogPostId(null);
+      setBlogImageFile(null);
+      setBlogImageInputKey((current) => current + 1);
       await invalidateCmsData();
     },
   });
@@ -314,6 +384,10 @@ const AdminDashboard = () => {
         cleanupDetails.push(`${data.removedReferences.projects} project`);
       }
 
+      if (data.removedReferences.blogPosts > 0) {
+        cleanupDetails.push(`${data.removedReferences.blogPosts} blog post`);
+      }
+
       if (data.removedReferences.testimonials > 0) {
         cleanupDetails.push(`${data.removedReferences.testimonials} testimonial`);
       }
@@ -345,12 +419,13 @@ const AdminDashboard = () => {
   const overview = dashboardQuery.data as DashboardResponse | undefined;
   const leads = (leadsQuery.data as LeadRecord[] | undefined) ?? [];
   const projects = (projectsQuery.data as ProjectItem[] | undefined) ?? defaultProjects;
+  const blogPosts = (blogPostsQuery.data as BlogPostItem[] | undefined) ?? defaultBlogPosts;
   const testimonials = (testimonialsQuery.data as TestimonialItem[] | undefined) ?? defaultTestimonials;
   const assets = (assetsQuery.data as AssetRecord[] | undefined) ?? [];
   const googleReviewStatus = googleReviewStatusQuery.data as GoogleReviewSyncStatus | undefined;
 
   const topProjectImages = useMemo(
-    () => assets.filter((asset) => asset.category === "project" || asset.category === "brochure"),
+    () => assets.filter((asset) => asset.category === "project" || asset.category === "blog" || asset.category === "brochure"),
     [assets],
   );
 
@@ -377,6 +452,14 @@ const AdminDashboard = () => {
     projectMutation.mutate(projectForm);
   };
 
+  const handleBlogPostSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    blogPostMutation.mutate({
+      ...blogPostForm,
+      slug: blogPostForm.slug || slugifyTitle(blogPostForm.title),
+    });
+  };
+
   const handleTestimonialSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     testimonialMutation.mutate(testimonialForm);
@@ -394,40 +477,57 @@ const AdminDashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-muted/40">
-      <div className="border-b border-border bg-card/90 backdrop-blur-xl">
-        <div className="container mx-auto flex flex-col gap-4 px-4 py-6 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-primary">SUNTECH Admin</p>
-            <h1 className="mt-2 text-3xl font-extrabold text-foreground">Welcome back, {adminName}</h1>
-            <p className="mt-1 text-sm text-muted-foreground">Manage leads, projects, testimonials, settings, uploads, and analytics from one place.</p>
+    <div className="relative min-h-screen overflow-hidden bg-[#eef3ef]">
+      <img
+        src={logo}
+        alt=""
+        aria-hidden="true"
+        className="pointer-events-none fixed right-[-4rem] top-48 z-0 w-[34rem] max-w-[80vw] opacity-[0.035] grayscale"
+      />
+      <div className="pointer-events-none fixed inset-x-0 top-0 z-0 h-80 bg-[radial-gradient(circle_at_top_left,rgba(24,128,57,0.16),transparent_38%),linear-gradient(135deg,rgba(255,255,255,0.95),rgba(240,247,242,0.75))]" />
+
+      <div className="relative z-10 border-b border-slate-200/80 bg-white/85 backdrop-blur-xl">
+        <div className="container mx-auto flex flex-col gap-6 px-4 py-7 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-center gap-5">
+            <div className="flex h-16 w-40 items-center justify-start">
+              <img src={logo} alt="SUNTECH" className="h-14 w-auto object-contain drop-shadow-[0_10px_18px_rgba(24,128,57,0.16)]" />
+            </div>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.35em] text-solar-green">SUNTECH Admin</p>
+              <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-slate-950 md:text-4xl">Welcome back, {adminName}</h1>
+              <p className="mt-2 max-w-2xl text-sm text-slate-600 md:text-base">
+                Manage projects, blog posts, testimonials, site settings, and media from one clean workspace.
+              </p>
+            </div>
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <a href="/" target="_blank" rel="noreferrer" className="rounded-xl border border-border px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-muted">
+            <a href="/" target="_blank" rel="noreferrer" className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-800 shadow-sm transition-all hover:-translate-y-0.5 hover:border-solar-green/30 hover:bg-solar-green/5">
               View Site
             </a>
-            <button onClick={handleLogout} className="rounded-xl bg-solar-green px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-solar-green/90">
+            <button onClick={handleLogout} className="rounded-2xl bg-solar-green px-5 py-3 text-sm font-bold text-white shadow-lg shadow-solar-green/20 transition-all hover:-translate-y-0.5 hover:bg-solar-green/90">
               Log Out
             </button>
           </div>
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="container relative z-10 mx-auto px-4 py-8">
         {feedback ? (
           <div className="mb-6 rounded-2xl border border-solar-green/20 bg-solar-green/10 px-4 py-3 text-sm text-solar-green">
             {feedback}
           </div>
         ) : null}
 
-        <div className="mb-8 flex flex-wrap gap-3">
-          {tabs.map((tab) => (
+        <div className="mb-8 flex flex-wrap gap-3 rounded-[1.4rem] border border-white/70 bg-white/65 p-3 shadow-[0_18px_45px_rgba(15,23,42,0.05)] backdrop-blur">
+          {tabs.filter((tab) => !("hidden" in tab && tab.hidden)).map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`rounded-full px-5 py-2.5 text-sm font-semibold transition-colors ${
-                activeTab === tab.id ? "bg-solar-green text-white" : "bg-card text-muted-foreground hover:bg-border"
+              className={`rounded-2xl px-5 py-3 text-sm font-bold transition-all ${
+                activeTab === tab.id
+                  ? "bg-solar-green text-white shadow-lg shadow-solar-green/20"
+                  : "bg-white text-slate-600 shadow-sm hover:-translate-y-0.5 hover:bg-solar-green/5 hover:text-solar-green"
               }`}
             >
               {tab.label}
@@ -437,23 +537,26 @@ const AdminDashboard = () => {
 
         {activeTab === "overview" ? (
           <div className="space-y-8">
-            <SectionTitle title="Overview" subtitle="High-level business signals from leads, content, and page traffic." />
+            <SectionTitle title="Overview" subtitle="High-level content and website activity summary." />
 
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               {[
-                { label: "Total Leads", value: overview?.stats.totalLeads ?? 0 },
-                { label: "New Leads", value: overview?.stats.newLeads ?? 0 },
                 { label: "Published Projects", value: overview?.stats.totalProjects ?? 0 },
+                { label: "Published Blog Posts", value: overview?.stats.totalBlogPosts ?? 0 },
+                { label: "Published Testimonials", value: overview?.stats.totalTestimonials ?? 0 },
                 { label: "Newsletter Subscribers", value: overview?.stats.totalSubscribers ?? 0 },
               ].map((item) => (
-                <div key={item.label} className={cardClass}>
-                  <p className="text-sm text-muted-foreground">{item.label}</p>
-                  <p className="mt-3 text-4xl font-extrabold text-foreground">{item.value}</p>
+                <div
+                  key={item.label}
+                  className="rounded-[1.25rem] border border-slate-200 bg-white p-7 shadow-sm"
+                >
+                  <p className="text-sm font-medium text-slate-600">{item.label}</p>
+                  <p className="mt-5 text-5xl font-extrabold tracking-tight text-slate-950">{item.value}</p>
                 </div>
               ))}
             </div>
 
-            <div className="grid gap-6 lg:grid-cols-3">
+            <div className="hidden">
               <div className={`${cardClass} lg:col-span-2`}>
                 <SectionTitle title="Recent Leads" subtitle="Most recent website enquiries." />
                 <div className="space-y-4">
@@ -734,6 +837,216 @@ const AdminDashboard = () => {
           </div>
         ) : null}
 
+        {activeTab === "blog" ? (
+          <div className="grid gap-6 xl:grid-cols-[1.05fr_1.2fr]">
+            <div className={cardClass}>
+              <SectionTitle
+                title={editingBlogPostId ? "Edit Blog Post" : "Add Blog Post"}
+                subtitle="Create, publish, feature, reorder, and remove blog posts shown on the public Blog page."
+              />
+              <form onSubmit={handleBlogPostSubmit} className="space-y-4">
+                <input
+                  className={inputClass}
+                  placeholder="Blog title"
+                  value={blogPostForm.title}
+                  onChange={(event) =>
+                    setBlogPostForm((current) => ({
+                      ...current,
+                      title: event.target.value,
+                      slug: current.slug || slugifyTitle(event.target.value),
+                    }))
+                  }
+                  required
+                />
+                <div className="grid gap-4 md:grid-cols-2">
+                  <input
+                    className={inputClass}
+                    placeholder="URL slug"
+                    value={blogPostForm.slug}
+                    onChange={(event) => setBlogPostForm((current) => ({ ...current, slug: slugifyTitle(event.target.value) }))}
+                    required
+                  />
+                  <input
+                    className={inputClass}
+                    placeholder="Category"
+                    value={blogPostForm.category}
+                    onChange={(event) => setBlogPostForm((current) => ({ ...current, category: event.target.value }))}
+                    required
+                  />
+                </div>
+                <textarea
+                  className={textareaClass}
+                  placeholder="Short excerpt shown on cards"
+                  value={blogPostForm.excerpt}
+                  onChange={(event) => setBlogPostForm((current) => ({ ...current, excerpt: event.target.value }))}
+                  required
+                />
+                <textarea
+                  className={`${textareaClass} min-h-[180px]`}
+                  placeholder="Full blog content / notes"
+                  value={blogPostForm.content}
+                  onChange={(event) => setBlogPostForm((current) => ({ ...current, content: event.target.value }))}
+                  required
+                />
+
+                <div className="space-y-3 rounded-2xl border border-border bg-muted/30 p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">Blog image</p>
+                      <p className="mt-1 text-xs text-muted-foreground">Upload a new image or use one of the default hero images.</p>
+                    </div>
+                    {blogPostForm.imageUrl ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setBlogPostForm((current) => ({ ...current, imageUrl: "" }));
+                          setBlogImageFile(null);
+                          setBlogImageInputKey((current) => current + 1);
+                        }}
+                        className="rounded-xl border border-border px-3 py-2 text-sm font-semibold text-foreground hover:bg-background"
+                      >
+                        Remove Image
+                      </button>
+                    ) : null}
+                  </div>
+                  <select
+                    className={inputClass}
+                    value={blogPostForm.imageUrl || ""}
+                    onChange={(event) => setBlogPostForm((current) => ({ ...current, imageUrl: event.target.value }))}
+                  >
+                    <option value="">Default artwork</option>
+                    <option value="default:hero-commercial">Commercial solar hero</option>
+                    <option value="default:hero-residential">Residential solar hero</option>
+                    <option value="default:hero-industrial">Industrial solar hero</option>
+                  </select>
+                  <input
+                    key={blogImageInputKey}
+                    className={inputClass}
+                    type="file"
+                    accept="image/*"
+                    onChange={(event) => setBlogImageFile(event.target.files?.[0] ?? null)}
+                  />
+                  {blogImageFile ? (
+                    <p className="text-xs text-muted-foreground">Selected file: {blogImageFile.name}</p>
+                  ) : blogPostForm.imageUrl ? (
+                    <p className="text-xs text-muted-foreground">Current image: {blogPostForm.imageUrl}</p>
+                  ) : null}
+                  {blogPostForm.imageUrl ? (
+                    <div className="overflow-hidden rounded-2xl border border-border bg-background">
+                      <img src={resolveContentImageUrl(blogPostForm.imageUrl)} alt={blogPostForm.title || "Blog preview"} className="h-40 w-full object-cover" />
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-3">
+                  <input
+                    className={inputClass}
+                    type="date"
+                    value={blogPostForm.publishedAt || ""}
+                    onChange={(event) => setBlogPostForm((current) => ({ ...current, publishedAt: event.target.value }))}
+                  />
+                  <input
+                    className={inputClass}
+                    placeholder="Read time"
+                    value={blogPostForm.readTime || ""}
+                    onChange={(event) => setBlogPostForm((current) => ({ ...current, readTime: event.target.value }))}
+                  />
+                  <input
+                    className={inputClass}
+                    type="number"
+                    min={0}
+                    placeholder="Sort order"
+                    value={blogPostForm.sortOrder ?? 0}
+                    onChange={(event) => setBlogPostForm((current) => ({ ...current, sortOrder: Number(event.target.value) }))}
+                  />
+                </div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <label className="flex items-center gap-3 rounded-xl border border-border px-4 py-3 text-sm text-foreground">
+                    <input type="checkbox" checked={blogPostForm.isFeatured === true} onChange={(event) => setBlogPostForm((current) => ({ ...current, isFeatured: event.target.checked }))} />
+                    Featured post
+                  </label>
+                  <label className="flex items-center gap-3 rounded-xl border border-border px-4 py-3 text-sm text-foreground">
+                    <input type="checkbox" checked={blogPostForm.isPublished !== false} onChange={(event) => setBlogPostForm((current) => ({ ...current, isPublished: event.target.checked }))} />
+                    Published
+                  </label>
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  <button type="submit" disabled={blogPostMutation.isPending} className="rounded-xl bg-solar-green px-4 py-3 font-semibold text-white transition-colors hover:bg-solar-green/90 disabled:cursor-not-allowed disabled:opacity-70">
+                    {blogPostMutation.isPending ? "Saving..." : editingBlogPostId ? "Save Blog Post" : "Create Blog Post"}
+                  </button>
+                  {editingBlogPostId ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingBlogPostId(null);
+                        setBlogPostForm(emptyBlogPostForm);
+                        setBlogImageFile(null);
+                        setBlogImageInputKey((current) => current + 1);
+                      }}
+                      className="rounded-xl border border-border px-4 py-3 font-semibold text-foreground transition-colors hover:bg-muted"
+                    >
+                      Cancel Edit
+                    </button>
+                  ) : null}
+                </div>
+              </form>
+            </div>
+
+            <div className={cardClass}>
+              <SectionTitle title="Existing Blog Posts" subtitle="Edit, feature, publish, or delete content from the Blog page." />
+              <div className="space-y-4">
+                {blogPosts.map((post) => (
+                  <div key={`${post.id ?? post.slug}-${post.sortOrder ?? 0}`} className="overflow-hidden rounded-2xl border border-border">
+                    <div className="grid gap-4 md:grid-cols-[160px_1fr]">
+                      <img src={resolveContentImageUrl(post.imageUrl)} alt={post.title} className="h-44 w-full object-cover md:h-full" />
+                      <div className="p-4">
+                        <div className="flex flex-wrap gap-2">
+                          <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">{post.category}</span>
+                          {post.isFeatured ? <span className="rounded-full bg-solar-green/10 px-3 py-1 text-xs font-bold text-solar-green">Featured</span> : null}
+                          {post.isPublished === false ? <span className="rounded-full bg-red-50 px-3 py-1 text-xs font-bold text-red-600">Draft</span> : null}
+                        </div>
+                        <p className="mt-3 font-semibold text-foreground">{post.title}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">/{post.slug} - {post.publishedAt || "No date"} - {post.readTime || "No read time"}</p>
+                        <p className="mt-2 text-sm text-muted-foreground">{post.excerpt}</p>
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          <button
+                            onClick={() => {
+                              setEditingBlogPostId(post.id ?? null);
+                              setBlogImageFile(null);
+                              setBlogImageInputKey((current) => current + 1);
+                              setBlogPostForm({
+                                ...emptyBlogPostForm,
+                                ...post,
+                                publishedAt: post.publishedAt ? String(post.publishedAt).slice(0, 10) : "",
+                              });
+                            }}
+                            className="rounded-xl border border-border px-3 py-2 text-sm font-semibold text-foreground hover:bg-muted"
+                          >
+                            Edit
+                          </button>
+                          {post.id ? (
+                            <button
+                              onClick={async () => {
+                                await deleteBlogPost(token, post.id!);
+                                setFeedback("Blog post deleted.");
+                                await invalidateCmsData();
+                              }}
+                              className="rounded-xl border border-red-300 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"
+                            >
+                              Delete
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {blogPosts.length ? null : <p className="text-sm text-muted-foreground">No blog posts yet.</p>}
+              </div>
+            </div>
+          </div>
+        ) : null}
+
         {activeTab === "testimonials" ? (
           <div className="grid gap-6 xl:grid-cols-[1.05fr_1.2fr]">
             <div className={`${cardClass} xl:col-span-2`}>
@@ -937,6 +1250,26 @@ const AdminDashboard = () => {
               </div>
 
               <div className={cardClass}>
+                <SectionTitle title="Contact Page Copy" subtitle="Edit the public Contact page headings and Pune snapshot introduction." />
+                <div className="space-y-4">
+                  <input className={inputClass} placeholder="Banner title" value={contactPageForm.bannerTitle} onChange={(event) => setContactPageForm((current) => ({ ...current, bannerTitle: event.target.value }))} />
+                  <textarea className={textareaClass} placeholder="Banner subtitle" value={contactPageForm.bannerSubtitle} onChange={(event) => setContactPageForm((current) => ({ ...current, bannerSubtitle: event.target.value }))} />
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <input className={inputClass} placeholder="Contact info title" value={contactPageForm.infoTitle} onChange={(event) => setContactPageForm((current) => ({ ...current, infoTitle: event.target.value }))} />
+                    <input className={inputClass} placeholder="Form title" value={contactPageForm.formTitle} onChange={(event) => setContactPageForm((current) => ({ ...current, formTitle: event.target.value }))} />
+                  </div>
+                  <input className={inputClass} placeholder="Pune section title" value={contactPageForm.puneTitle} onChange={(event) => setContactPageForm((current) => ({ ...current, puneTitle: event.target.value }))} />
+                  <textarea className={textareaClass} placeholder="Pune section subtitle" value={contactPageForm.puneSubtitle} onChange={(event) => setContactPageForm((current) => ({ ...current, puneSubtitle: event.target.value }))} />
+                  <button
+                    onClick={() => settingsMutation.mutate({ key: "contact_page", value: contactPageForm })}
+                    className="rounded-xl bg-solar-green px-4 py-3 font-semibold text-white transition-colors hover:bg-solar-green/90"
+                  >
+                    Save Contact Page
+                  </button>
+                </div>
+              </div>
+
+              <div className={cardClass}>
                 <SectionTitle title="Social Links" subtitle="Footer social buttons use these links when provided." />
                 <div className="space-y-4">
                   <input className={inputClass} placeholder="Facebook URL" value={socialLinksForm.facebook || ""} onChange={(event) => setSocialLinksForm((current) => ({ ...current, facebook: event.target.value }))} />
@@ -958,7 +1291,7 @@ const AdminDashboard = () => {
         {activeTab === "uploads" ? (
           <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
             <div className={cardClass}>
-              <SectionTitle title="Upload Asset" subtitle="Store project photos, brochures, or other CMS assets for reuse and manage them from this tab." />
+              <SectionTitle title="Upload Media" subtitle="Add images or files that can be reused in project cards, blog posts, and testimonials." />
               <div className="space-y-4">
                 <input key={uploadInputKey} type="file" onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)} className={inputClass} />
                 <select value={uploadCategory} onChange={(event) => setUploadCategory(event.target.value)} className={inputClass}>
@@ -969,10 +1302,10 @@ const AdminDashboard = () => {
                   ))}
                 </select>
                 <p className="text-xs text-muted-foreground">
-                  `General / Other` means the file is uploaded and stored in the library, but not specifically tagged for a project, brochure, or testimonial yet.
+                  Media files are saved in the website library. Choose Project Image or Blog Image when the file is meant for that section.
                 </p>
                 <button onClick={saveUpload} className="rounded-xl bg-solar-green px-4 py-3 font-semibold text-white transition-colors hover:bg-solar-green/90">
-                  Upload File
+                  Upload Media
                 </button>
               </div>
 
@@ -993,7 +1326,7 @@ const AdminDashboard = () => {
             </div>
 
             <div className={cardClass}>
-              <SectionTitle title="Uploaded Assets" subtitle="Edit category/name, copy the file path, open the asset, or delete it from here." />
+              <SectionTitle title="Media Library" subtitle="Preview uploaded files, copy their file path, edit category/name, or delete unused media." />
               <div className="space-y-4">
                 {assets.map((asset) => {
                   const draft = assetDrafts[asset.id] || {

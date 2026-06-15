@@ -3,7 +3,9 @@ import mysql from "mysql2/promise";
 import { config } from "./config.js";
 import {
   defaultAboutPage,
+  defaultBlogPosts,
   defaultCompanyProfile,
+  defaultContactPage,
   defaultProjects,
   defaultSocialLinks,
   defaultTestimonials,
@@ -81,6 +83,23 @@ const migrationStatements = [
     is_published TINYINT(1) NOT NULL DEFAULT 1,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+  `CREATE TABLE IF NOT EXISTS blog_posts (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(220) NOT NULL,
+    slug VARCHAR(240) NOT NULL UNIQUE,
+    excerpt TEXT NOT NULL,
+    content LONGTEXT NOT NULL,
+    category VARCHAR(120) NOT NULL,
+    image_url VARCHAR(500) NULL,
+    published_at DATE NULL,
+    read_time VARCHAR(40) NULL,
+    sort_order INT NOT NULL DEFAULT 0,
+    is_featured TINYINT(1) NOT NULL DEFAULT 0,
+    is_published TINYINT(1) NOT NULL DEFAULT 1,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_blog_posts_public (is_published, sort_order, published_at)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
   `CREATE TABLE IF NOT EXISTS testimonials (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -191,6 +210,7 @@ const insertSettingsIfMissing = async (db: mysql.Pool) => {
   const settings = {
     company_profile: defaultCompanyProfile,
     about_page: defaultAboutPage,
+    contact_page: defaultContactPage,
     social_links: defaultSocialLinks,
   };
 
@@ -301,6 +321,35 @@ const seedTestimonialsIfMissing = async (db: mysql.Pool) => {
   }
 };
 
+const seedBlogPostsIfMissing = async (db: mysql.Pool) => {
+  const [rows] = await db.query<any[]>("SELECT COUNT(*) AS total FROM blog_posts");
+
+  if (Number(rows[0]?.total ?? 0) > 0) {
+    return;
+  }
+
+  for (const post of defaultBlogPosts) {
+    await db.execute(
+      `INSERT INTO blog_posts
+        (title, slug, excerpt, content, category, image_url, published_at, read_time, sort_order, is_featured, is_published)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        post.title,
+        post.slug,
+        post.excerpt,
+        post.content,
+        post.category,
+        post.imageUrl,
+        post.publishedAt,
+        post.readTime,
+        post.sortOrder,
+        post.isFeatured ? 1 : 0,
+        post.isPublished ? 1 : 0,
+      ],
+    );
+  }
+};
+
 const runMigrations = async (db: mysql.Pool) => {
   for (const statement of migrationStatements) {
     await db.execute(statement);
@@ -382,6 +431,7 @@ export const initDatabase = async () => {
   await insertSettingsIfMissing(pool);
   await seedAdminIfMissing(pool);
   await syncDefaultProjects(pool);
+  await seedBlogPostsIfMissing(pool);
   await seedTestimonialsIfMissing(pool);
 
   return pool;

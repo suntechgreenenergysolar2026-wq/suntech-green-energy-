@@ -14,7 +14,9 @@ import { requireAdmin, signAdminToken, type AuthenticatedRequest } from "./auth.
 import { config } from "./config.js";
 import {
   defaultAboutPage,
+  defaultBlogPosts,
   defaultCompanyProfile,
+  defaultContactPage,
   defaultProjects,
   defaultSocialLinks,
   defaultTestimonials,
@@ -78,6 +80,20 @@ const projectSchema = z.object({
   isPublished: z.boolean().optional(),
 });
 
+const blogPostSchema = z.object({
+  title: z.string().trim().min(3).max(220),
+  slug: z.string().trim().min(3).max(240).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
+  excerpt: z.string().trim().min(20).max(1200),
+  content: z.string().trim().min(20).max(12000),
+  category: z.string().trim().min(2).max(120),
+  imageUrl: z.string().trim().max(500).optional().or(z.literal("")),
+  publishedAt: z.string().trim().max(20).optional().or(z.literal("")),
+  readTime: z.string().trim().max(40).optional().or(z.literal("")),
+  sortOrder: z.number().int().min(0).max(9999).optional(),
+  isFeatured: z.boolean().optional(),
+  isPublished: z.boolean().optional(),
+});
+
 const testimonialSchema = z.object({
   name: z.string().trim().min(2).max(160),
   role: z.string().trim().min(2).max(190),
@@ -116,6 +132,15 @@ const aboutPageSchema = z.object({
   storyParagraph2: z.string().trim().min(20).max(1500),
 });
 
+const contactPageSchema = z.object({
+  bannerTitle: z.string().trim().min(3).max(120),
+  bannerSubtitle: z.string().trim().min(10).max(240),
+  infoTitle: z.string().trim().min(3).max(120),
+  formTitle: z.string().trim().min(3).max(120),
+  puneTitle: z.string().trim().min(3).max(160),
+  puneSubtitle: z.string().trim().min(10).max(500),
+});
+
 const socialLinksSchema = z.object({
   facebook: z.string().trim().optional().or(z.literal("")),
   instagram: z.string().trim().optional().or(z.literal("")),
@@ -131,6 +156,7 @@ const assetUpdateSchema = z.object({
 const settingValidators = {
   company_profile: companyProfileSchema,
   about_page: aboutPageSchema,
+  contact_page: contactPageSchema,
   social_links: socialLinksSchema,
 } as const;
 
@@ -173,6 +199,23 @@ const toProject = (row: any) => ({
   category: row.category,
   description: row.description || "",
   imageUrl: row.image_url || "",
+  sortOrder: row.sort_order,
+  isFeatured: Boolean(row.is_featured),
+  isPublished: Boolean(row.is_published),
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+});
+
+const toBlogPost = (row: any) => ({
+  id: row.id,
+  title: row.title,
+  slug: row.slug,
+  excerpt: row.excerpt,
+  content: row.content,
+  category: row.category,
+  imageUrl: row.image_url || "",
+  publishedAt: row.published_at,
+  readTime: row.read_time || "",
   sortOrder: row.sort_order,
   isFeatured: Boolean(row.is_featured),
   isPublished: Boolean(row.is_published),
@@ -240,6 +283,9 @@ const loadPublicContent = async () => {
   const [testimonialRows] = await db.query<any[]>(
     `SELECT * FROM testimonials WHERE is_published = 1 ORDER BY sort_order ASC, id DESC`,
   );
+  const [blogRows] = await db.query<any[]>(
+    `SELECT * FROM blog_posts WHERE is_published = 1 ORDER BY is_featured DESC, sort_order ASC, published_at DESC, id DESC`,
+  );
   const [googleReviewRows] = await db.query<any[]>(
     `SELECT * FROM google_reviews WHERE is_published = 1 ORDER BY review_update_time DESC, id DESC`,
   );
@@ -256,11 +302,16 @@ const loadPublicContent = async () => {
       ...defaultAboutPage,
       ...parseJsonValue(settings.about_page, {}),
     },
+    contactPage: {
+      ...defaultContactPage,
+      ...parseJsonValue(settings.contact_page, {}),
+    },
     socialLinks: {
       ...defaultSocialLinks,
       ...parseJsonValue(settings.social_links, {}),
     },
     projects: projectRows.length > 0 ? projectRows.map(toProject) : defaultProjects,
+    blogPosts: blogRows.length > 0 ? blogRows.map(toBlogPost) : defaultBlogPosts,
     testimonials: googleTestimonials.length > 0 ? [...googleTestimonials, ...manualTestimonials] : manualTestimonials,
   };
 };
@@ -466,6 +517,7 @@ app.get("/api/admin/dashboard", requireAdmin, async (_req, res, next) => {
       "SELECT COUNT(*) AS totalSubscribers FROM newsletter_subscribers WHERE status = 'active'",
     );
     const [[projectStats]] = await db.query<any[]>("SELECT COUNT(*) AS totalProjects FROM projects WHERE is_published = 1");
+    const [[blogStats]] = await db.query<any[]>("SELECT COUNT(*) AS totalBlogPosts FROM blog_posts WHERE is_published = 1");
     const [[testimonialStats]] = await db.query<any[]>(
       "SELECT COUNT(*) AS totalTestimonials FROM testimonials WHERE is_published = 1",
     );
@@ -498,6 +550,7 @@ app.get("/api/admin/dashboard", requireAdmin, async (_req, res, next) => {
         wonLeads: Number(leadStats?.wonLeads ?? 0),
         totalSubscribers: Number(newsletterStats?.totalSubscribers ?? 0),
         totalProjects: Number(projectStats?.totalProjects ?? 0),
+        totalBlogPosts: Number(blogStats?.totalBlogPosts ?? 0),
         totalTestimonials: Number(testimonialStats?.totalTestimonials ?? 0),
       },
       recentLeads,
@@ -623,6 +676,90 @@ app.delete("/api/admin/projects/:id", requireAdmin, async (req, res, next) => {
   }
 });
 
+app.get("/api/admin/blog-posts", requireAdmin, async (_req, res, next) => {
+  try {
+    const db = getDb();
+    const [rows] = await db.query<any[]>(
+      "SELECT * FROM blog_posts ORDER BY is_featured DESC, sort_order ASC, published_at DESC, id DESC",
+    );
+    res.json(rows.map(toBlogPost));
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/admin/blog-posts", requireAdmin, async (req, res, next) => {
+  try {
+    const parsed = blogPostSchema.parse(req.body);
+    const db = getDb();
+    const [result] = await db.execute<ResultSetHeader>(
+      `INSERT INTO blog_posts
+        (title, slug, excerpt, content, category, image_url, published_at, read_time, sort_order, is_featured, is_published)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        parsed.title,
+        parsed.slug,
+        parsed.excerpt,
+        parsed.content,
+        parsed.category,
+        parsed.imageUrl || null,
+        parsed.publishedAt || null,
+        parsed.readTime || null,
+        parsed.sortOrder ?? 0,
+        parsed.isFeatured === true ? 1 : 0,
+        parsed.isPublished === false ? 0 : 1,
+      ],
+    );
+
+    res.status(201).json({ success: true, id: result.insertId });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.put("/api/admin/blog-posts/:id", requireAdmin, async (req, res, next) => {
+  try {
+    const parsed = blogPostSchema.parse(req.body);
+    const postId = Number(req.params.id);
+    const db = getDb();
+
+    await db.execute(
+      `UPDATE blog_posts
+       SET title = ?, slug = ?, excerpt = ?, content = ?, category = ?, image_url = ?, published_at = ?, read_time = ?, sort_order = ?, is_featured = ?, is_published = ?
+       WHERE id = ?`,
+      [
+        parsed.title,
+        parsed.slug,
+        parsed.excerpt,
+        parsed.content,
+        parsed.category,
+        parsed.imageUrl || null,
+        parsed.publishedAt || null,
+        parsed.readTime || null,
+        parsed.sortOrder ?? 0,
+        parsed.isFeatured === true ? 1 : 0,
+        parsed.isPublished === false ? 0 : 1,
+        postId,
+      ],
+    );
+
+    res.json({ success: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.delete("/api/admin/blog-posts/:id", requireAdmin, async (req, res, next) => {
+  try {
+    const postId = Number(req.params.id);
+    const db = getDb();
+    await db.execute("DELETE FROM blog_posts WHERE id = ?", [postId]);
+    res.json({ success: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.get("/api/admin/testimonials", requireAdmin, async (_req, res, next) => {
   try {
     const db = getDb();
@@ -729,6 +866,10 @@ app.get("/api/admin/settings", requireAdmin, async (_req, res, next) => {
         ...defaultAboutPage,
         ...parseJsonValue(settings.about_page, {}),
       },
+      contact_page: {
+        ...defaultContactPage,
+        ...parseJsonValue(settings.contact_page, {}),
+      },
       social_links: {
         ...defaultSocialLinks,
         ...parseJsonValue(settings.social_links, {}),
@@ -827,6 +968,12 @@ app.delete("/api/admin/assets/:id", requireAdmin, async (req, res, next) => {
        WHERE image_url = ?`,
       [asset.file_url],
     );
+    const [blogCleanup] = await db.execute<ResultSetHeader>(
+      `UPDATE blog_posts
+       SET image_url = NULL
+       WHERE image_url = ?`,
+      [asset.file_url],
+    );
 
     await db.execute("DELETE FROM assets WHERE id = ?", [assetId]);
 
@@ -842,6 +989,7 @@ app.delete("/api/admin/assets/:id", requireAdmin, async (req, res, next) => {
       success: true,
       removedReferences: {
         projects: Number(projectCleanup.affectedRows ?? 0),
+        blogPosts: Number(blogCleanup.affectedRows ?? 0),
         testimonials: Number(testimonialCleanup.affectedRows ?? 0),
       },
     });

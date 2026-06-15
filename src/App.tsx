@@ -14,6 +14,7 @@ import HousingSociety from "./pages/HousingSociety";
 import Commercial from "./pages/Commercial";
 import Projects from "./pages/Projects";
 import About from "./pages/About";
+import Blog from "./pages/Blog";
 import Contact from "./pages/Contact";
 import PuneSolar from "./pages/PuneSolar";
 import NotFound from "./pages/NotFound";
@@ -45,6 +46,7 @@ const App = () => (
             <Route path="/reviews" element={<Navigate to={{ pathname: "/about", hash: "#reviews" }} replace />} />
             <Route path="/financing" element={<Navigate to="/about" replace />} />
             <Route path="/about" element={<About />} />
+            <Route path="/blog" element={<Blog />} />
             <Route path="/contact" element={<Contact />} />
           </Route>
           <Route path="*" element={<NotFound />} />

@@ -68,8 +68,8 @@ const Contact = () => {
   return (
     <div>
       <PageBanner
-        title={isPune ? "Contact Pune Solar Team" : "Contact Us"}
-        subtitle={isPune ? "Get Pune-specific rooftop pricing, subsidy guidance, and installation support." : "Get in touch with our solar experts"}
+        title={isPune ? "Contact Pune Solar Team" : data.contactPage.bannerTitle}
+        subtitle={isPune ? "Get Pune-specific rooftop pricing, subsidy guidance, and installation support." : data.contactPage.bannerSubtitle}
         breadcrumbs={[{ label: "Home", path: "/" }, { label: "Contact" }, ...(selectedCity ? [{ label: selectedCity }] : [])]}
       />
 
@@ -78,7 +78,7 @@ const Contact = () => {
           <div className="mx-auto grid max-w-6xl gap-12 lg:grid-cols-2">
             <motion.div className="h-full" initial={{ opacity: 0, x: -30 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}>
               <div className="flex h-full flex-col rounded-2xl border border-border bg-card p-8 shadow-lg">
-                <h2 className="mb-6 text-3xl font-bold text-foreground">Get In Touch</h2>
+                <h2 className="mb-6 text-3xl font-bold text-foreground">{data.contactPage.infoTitle}</h2>
                 <div className="mb-8 space-y-6">
                   {contactInfo.map((item) => (
                     <div key={item.title} className="flex items-start gap-4">
@@ -116,7 +116,7 @@ const Contact = () => {
 
             <motion.div className="h-full" initial={{ opacity: 0, x: 30 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}>
               <div className="flex h-full flex-col rounded-2xl border border-border bg-card p-8 shadow-lg">
-                <h3 className="mb-6 text-xl font-bold text-foreground">Send Us a Message</h3>
+                <h3 className="mb-6 text-xl font-bold text-foreground">{data.contactPage.formTitle}</h3>
                 <LeadForm fillHeight />
               </div>
             </motion.div>
@@ -128,9 +128,9 @@ const Contact = () => {
         <section className="pb-20">
           <div className="container mx-auto px-4">
             <div className="mx-auto max-w-6xl rounded-2xl border border-border bg-card p-8 shadow-lg md:p-10">
-              <h2 className="text-3xl font-bold text-foreground">Pune Rooftop Solar Snapshot</h2>
+              <h2 className="text-3xl font-bold text-foreground">{data.contactPage.puneTitle}</h2>
               <p className="mt-3 text-sm leading-7 text-muted-foreground">
-                Quick overview for Pune homeowners based on publicly available market benchmarks and subsidy-aligned residential estimates.
+                {data.contactPage.puneSubtitle}
               </p>
 
               <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">

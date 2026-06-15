@@ -1,6 +1,8 @@
 import type {
   AboutPageContent,
+  BlogPostItem,
   CompanyProfile,
+  ContactPageContent,
   ProjectItem,
   PublicContent,
   SocialLinks,
@@ -49,6 +51,7 @@ export type DashboardResponse = {
     wonLeads: number;
     totalSubscribers: number;
     totalProjects: number;
+    totalBlogPosts: number;
     totalTestimonials: number;
   };
   recentLeads: Array<{
@@ -67,6 +70,7 @@ export type DashboardResponse = {
 export type AdminSettingsResponse = {
   company_profile: CompanyProfile;
   about_page: AboutPageContent;
+  contact_page: ContactPageContent;
   social_links: SocialLinks;
 };
 
@@ -250,6 +254,29 @@ export const deleteProject = (token: string, id: number) =>
     token,
   });
 
+export const getAdminBlogPosts = (token: string) =>
+  apiRequest<BlogPostItem[]>("/api/admin/blog-posts", { token });
+
+export const createBlogPost = (token: string, payload: BlogPostItem) =>
+  apiRequest<{ success: boolean; id: number }>("/api/admin/blog-posts", {
+    method: "POST",
+    token,
+    body: JSON.stringify(payload),
+  });
+
+export const updateBlogPost = (token: string, id: number, payload: BlogPostItem) =>
+  apiRequest<{ success: boolean }>(`/api/admin/blog-posts/${id}`, {
+    method: "PUT",
+    token,
+    body: JSON.stringify(payload),
+  });
+
+export const deleteBlogPost = (token: string, id: number) =>
+  apiRequest<{ success: boolean }>(`/api/admin/blog-posts/${id}`, {
+    method: "DELETE",
+    token,
+  });
+
 export const getAdminTestimonials = (token: string) =>
   apiRequest<TestimonialItem[]>("/api/admin/testimonials", { token });
 
@@ -319,7 +346,7 @@ export const updateAdminAsset = (token: string, id: number, payload: AssetUpdate
   });
 
 export const deleteAdminAsset = (token: string, id: number) =>
-  apiRequest<{ success: boolean; removedReferences: { projects: number; testimonials: number } }>(
+  apiRequest<{ success: boolean; removedReferences: { projects: number; blogPosts: number; testimonials: number } }>(
     `/api/admin/assets/${id}`,
     {
       method: "DELETE",

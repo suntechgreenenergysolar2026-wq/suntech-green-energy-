@@ -10,6 +10,8 @@ import { toPhoneHref } from "@/lib/contact-utils";
 const primaryLinks = [
   { label: "Home", path: "/" },
   { label: "Projects", path: "/projects" },
+  { label: "Blog", path: "/blog" },
+  { label: "Contact", path: "/contact" },
 ];
 
 const offeringLinks = [

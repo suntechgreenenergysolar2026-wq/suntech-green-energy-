@@ -9,8 +9,8 @@ const inputClass =
 const AdminLogin = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [email, setEmail] = useState("admin@suntek.local");
-  const [password, setPassword] = useState("ChangeMe123!");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -41,7 +41,7 @@ const AdminLogin = () => {
           </p>
           <h1 className="text-3xl font-extrabold">SUNTECH Dashboard</h1>
           <p className="mt-2 text-sm text-white/65">
-            Sign in to manage leads, content, uploads, and notification-ready data.
+            Sign in to manage projects, blog posts, testimonials, settings, and media.
           </p>
         </div>
 
@@ -68,8 +68,7 @@ const AdminLogin = () => {
         </form>
 
         <p className="mt-6 text-xs leading-relaxed text-white/45">
-          Default seed credentials are shown only to help you get started locally. The admin API also needs a valid MySQL
-          `DATABASE_URL` in `.env` before sign-in will work.
+          Use the admin email and password configured in `.env`.
         </p>
       </div>
     </div>

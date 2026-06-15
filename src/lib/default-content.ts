@@ -35,6 +35,15 @@ export type SocialLinks = {
   youtube?: string;
 };
 
+export type ContactPageContent = {
+  bannerTitle: string;
+  bannerSubtitle: string;
+  infoTitle: string;
+  formTitle: string;
+  puneTitle: string;
+  puneSubtitle: string;
+};
+
 export type ProjectItem = {
   id?: number;
   title: string;
@@ -44,6 +53,21 @@ export type ProjectItem = {
   category: string;
   description?: string;
   imageUrl?: string;
+  sortOrder?: number;
+  isFeatured?: boolean;
+  isPublished?: boolean;
+};
+
+export type BlogPostItem = {
+  id?: number;
+  title: string;
+  slug: string;
+  excerpt: string;
+  content: string;
+  category: string;
+  imageUrl?: string;
+  publishedAt?: string;
+  readTime?: string;
   sortOrder?: number;
   isFeatured?: boolean;
   isPublished?: boolean;
@@ -70,8 +94,10 @@ export type TestimonialItem = {
 export type PublicContent = {
   companyProfile: CompanyProfile;
   aboutPage: AboutPageContent;
+  contactPage: ContactPageContent;
   socialLinks: SocialLinks;
   projects: ProjectItem[];
+  blogPosts: BlogPostItem[];
   testimonials: TestimonialItem[];
 };
 
@@ -145,6 +171,16 @@ export const defaultSocialLinks: SocialLinks = {
   youtube: "",
 };
 
+export const defaultContactPage: ContactPageContent = {
+  bannerTitle: "Contact Us",
+  bannerSubtitle: "Get in touch with our solar experts",
+  infoTitle: "Get In Touch",
+  formTitle: "Send Us a Message",
+  puneTitle: "Pune Rooftop Solar Snapshot",
+  puneSubtitle:
+    "Quick overview for Pune homeowners based on publicly available market benchmarks and subsidy-aligned residential estimates.",
+};
+
 export const defaultProjects: ProjectItem[] = [
   {
     title: "Manjari Residential Rooftop, Pune",
@@ -184,6 +220,52 @@ export const defaultProjects: ProjectItem[] = [
   },
 ];
 
+export const defaultBlogPosts: BlogPostItem[] = [
+  {
+    title: "How to Plan a Rooftop Solar System That Pays Back Faster",
+    slug: "plan-rooftop-solar-system-faster-payback",
+    excerpt:
+      "A practical guide to matching system size, bill patterns, subsidy eligibility, and installation quality before you invest in rooftop solar.",
+    content:
+      "Start with your electricity bill, available rooftop area, shade-free hours, and long-term energy goals. A good solar plan balances monthly savings with safe structure, reliable equipment, and after-sales support.",
+    category: "Solar Planning",
+    imageUrl: "default:hero-commercial",
+    publishedAt: "2026-06-05",
+    readTime: "5 min read",
+    sortOrder: 1,
+    isFeatured: true,
+    isPublished: true,
+  },
+  {
+    title: "Residential Solar Subsidy Checklist for Homeowners",
+    slug: "residential-solar-subsidy-checklist",
+    excerpt: "Know the documents, site details, and practical checks that make the subsidy process smoother.",
+    content:
+      "Keep your electricity bill, consumer number, identity details, bank details, and rooftop photos ready before starting the subsidy process. Eligibility and final subsidy depend on applicable government rules.",
+    category: "Subsidy",
+    imageUrl: "default:hero-residential",
+    publishedAt: "2026-05-28",
+    readTime: "4 min read",
+    sortOrder: 2,
+    isFeatured: false,
+    isPublished: true,
+  },
+  {
+    title: "What Happens During a Professional Solar Site Visit",
+    slug: "professional-solar-site-visit",
+    excerpt: "From shadow checks to roof strength, here is what a good solar team reviews before final design.",
+    content:
+      "A site visit checks shade, structure, cable routing, inverter placement, safety access, and expected generation. These checks help avoid surprises during installation.",
+    category: "Process",
+    imageUrl: "default:hero-industrial",
+    publishedAt: "2026-05-22",
+    readTime: "3 min read",
+    sortOrder: 3,
+    isFeatured: false,
+    isPublished: true,
+  },
+];
+
 export const defaultTestimonials: TestimonialItem[] = [
   ...fallbackGoogleReviewTestimonials.map((item) => ({ ...item })),
   ...defaultManualTestimonials,
@@ -192,8 +274,10 @@ export const defaultTestimonials: TestimonialItem[] = [
 export const defaultPublicContent: PublicContent = {
   companyProfile: defaultCompanyProfile,
   aboutPage: defaultAboutPage,
+  contactPage: defaultContactPage,
   socialLinks: defaultSocialLinks,
   projects: defaultProjects,
+  blogPosts: defaultBlogPosts,
   testimonials: defaultTestimonials,
 };
 
