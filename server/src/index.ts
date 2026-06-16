@@ -264,6 +264,23 @@ const toGoogleReviewTestimonial = (row: any, googleReviewUrl?: string) => ({
 });
 
 const loadPublicContent = async () => {
+  if (!databaseReady) {
+    const googleReviewUrl = defaultCompanyProfile.googleReviewUrl || fallbackGoogleReviewUrl;
+
+    return {
+      companyProfile: defaultCompanyProfile,
+      aboutPage: defaultAboutPage,
+      contactPage: defaultContactPage,
+      socialLinks: defaultSocialLinks,
+      projects: defaultProjects,
+      blogPosts: defaultBlogPosts,
+      testimonials: [
+        ...fallbackGoogleReviewTestimonials.map((item) => ({ ...item, sourceUrl: googleReviewUrl })),
+        ...defaultTestimonials,
+      ],
+    };
+  }
+
   const db = getDb();
   const settings = await getSettingsMap();
   const companyProfile = {
@@ -352,6 +369,254 @@ app.get("/api/health", (_req, res) => {
     service: "suntek-api",
     database: databaseReady ? "connected" : "unavailable",
   });
+});
+
+const fallbackAdmin = {
+  id: 1,
+  adminId: 1,
+  name: config.defaultAdmin.name,
+  email: config.defaultAdmin.email,
+  role: "super_admin",
+};
+
+const fallbackSettings = {
+  company_profile: defaultCompanyProfile,
+  about_page: defaultAboutPage,
+  contact_page: defaultContactPage,
+  social_links: defaultSocialLinks,
+};
+
+const withFallbackIds = <T extends Record<string, unknown>>(items: T[]) =>
+  items.map((item, index) => ({
+    id: index + 1,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    ...item,
+  }));
+
+app.post("/api/admin/login", async (req, res, next) => {
+  if (databaseReady) {
+    return next();
+  }
+
+  try {
+    const parsed = adminLoginSchema.parse(req.body);
+
+    if (parsed.email !== config.defaultAdmin.email || parsed.password !== config.defaultAdmin.password) {
+      return res.status(401).json({ message: "Invalid credentials." });
+    }
+
+    const token = signAdminToken(fallbackAdmin);
+    return res.json({ token, admin: fallbackAdmin });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.get("/api/admin/dashboard", requireAdmin, (_req, res, next) => {
+  if (databaseReady) {
+    return next();
+  }
+
+  return res.json({
+    stats: {
+      totalLeads: 0,
+      newLeads: 0,
+      wonLeads: 0,
+      totalSubscribers: 0,
+      totalProjects: defaultProjects.length,
+      totalBlogPosts: defaultBlogPosts.length,
+      totalTestimonials: defaultTestimonials.length + fallbackGoogleReviewTestimonials.length,
+    },
+    recentLeads: [],
+    topPages: [],
+    leadSources: [],
+  });
+});
+
+app.get("/api/admin/leads", requireAdmin, (_req, res, next) => {
+  if (databaseReady) {
+    return next();
+  }
+
+  return res.json([]);
+});
+
+app.patch("/api/admin/leads/:id", requireAdmin, (_req, res, next) => {
+  if (databaseReady) {
+    return next();
+  }
+
+  return res.json({ success: true });
+});
+
+app.get("/api/admin/projects", requireAdmin, (_req, res, next) => {
+  if (databaseReady) {
+    return next();
+  }
+
+  return res.json(withFallbackIds(defaultProjects));
+});
+
+app.post("/api/admin/projects", requireAdmin, (_req, res, next) => {
+  if (databaseReady) {
+    return next();
+  }
+
+  return res.status(201).json({ success: true, id: Date.now() });
+});
+
+app.put("/api/admin/projects/:id", requireAdmin, (_req, res, next) => {
+  if (databaseReady) {
+    return next();
+  }
+
+  return res.json({ success: true });
+});
+
+app.delete("/api/admin/projects/:id", requireAdmin, (_req, res, next) => {
+  if (databaseReady) {
+    return next();
+  }
+
+  return res.json({ success: true });
+});
+
+app.get("/api/admin/blog-posts", requireAdmin, (_req, res, next) => {
+  if (databaseReady) {
+    return next();
+  }
+
+  return res.json(withFallbackIds(defaultBlogPosts));
+});
+
+app.post("/api/admin/blog-posts", requireAdmin, (_req, res, next) => {
+  if (databaseReady) {
+    return next();
+  }
+
+  return res.status(201).json({ success: true, id: Date.now() });
+});
+
+app.put("/api/admin/blog-posts/:id", requireAdmin, (_req, res, next) => {
+  if (databaseReady) {
+    return next();
+  }
+
+  return res.json({ success: true });
+});
+
+app.delete("/api/admin/blog-posts/:id", requireAdmin, (_req, res, next) => {
+  if (databaseReady) {
+    return next();
+  }
+
+  return res.json({ success: true });
+});
+
+app.get("/api/admin/testimonials", requireAdmin, (_req, res, next) => {
+  if (databaseReady) {
+    return next();
+  }
+
+  return res.json(withFallbackIds(defaultTestimonials));
+});
+
+app.post("/api/admin/testimonials", requireAdmin, (_req, res, next) => {
+  if (databaseReady) {
+    return next();
+  }
+
+  return res.status(201).json({ success: true, id: Date.now() });
+});
+
+app.put("/api/admin/testimonials/:id", requireAdmin, (_req, res, next) => {
+  if (databaseReady) {
+    return next();
+  }
+
+  return res.json({ success: true });
+});
+
+app.delete("/api/admin/testimonials/:id", requireAdmin, (_req, res, next) => {
+  if (databaseReady) {
+    return next();
+  }
+
+  return res.json({ success: true });
+});
+
+app.get("/api/admin/google-reviews/status", requireAdmin, (_req, res, next) => {
+  if (databaseReady) {
+    return next();
+  }
+
+  return res.json({
+    configured: false,
+    autoSync: false,
+    locationName: "",
+    totalSynced: 0,
+    lastSyncedAt: null,
+    lastAttemptAt: null,
+    lastError: "MySQL is unavailable; using local fallback content.",
+  });
+});
+
+app.post("/api/admin/google-reviews/sync", requireAdmin, (_req, res, next) => {
+  if (databaseReady) {
+    return next();
+  }
+
+  return res.json({
+    configured: false,
+    autoSync: false,
+    locationName: "",
+    totalSynced: 0,
+    lastSyncedAt: null,
+    lastAttemptAt: null,
+    lastError: "MySQL is unavailable; using local fallback content.",
+    syncedNow: 0,
+  });
+});
+
+app.get("/api/admin/settings", requireAdmin, (_req, res, next) => {
+  if (databaseReady) {
+    return next();
+  }
+
+  return res.json(fallbackSettings);
+});
+
+app.put("/api/admin/settings/:key", requireAdmin, (_req, res, next) => {
+  if (databaseReady) {
+    return next();
+  }
+
+  return res.json({ success: true });
+});
+
+app.get("/api/admin/assets", requireAdmin, (_req, res, next) => {
+  if (databaseReady) {
+    return next();
+  }
+
+  return res.json([]);
+});
+
+app.patch("/api/admin/assets/:id", requireAdmin, (_req, res, next) => {
+  if (databaseReady) {
+    return next();
+  }
+
+  return res.json({ success: true });
+});
+
+app.delete("/api/admin/assets/:id", requireAdmin, (_req, res, next) => {
+  if (databaseReady) {
+    return next();
+  }
+
+  return res.json({ success: true, removedReferences: { projects: 0, blogPosts: 0, testimonials: 0 } });
 });
 
 app.get("/api/public/content", async (_req, res, next) => {
